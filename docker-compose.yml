@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  travel-planner:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    container_name: travel-planner-agent
+    ports:
+      - "8501:8501"  # Streamlit
+      - "8000:8000"  # FastAPI (if needed)
+      - "5000:5000"  # Additional service port
+    volumes:
+      - .:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PYTHONPATH=/workspace
+    env_file:
+      - .env
+    working_dir: /workspace
+    command: tail -f /dev/null  # Keep container running
+    
+  # Optional: Redis for caching (if needed)
+  redis:
+    image: redis:7-alpine
+    container_name: travel-planner-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    
+volumes:
+  redis_data: 
