@@ -24,7 +24,6 @@ python-dotenv==1.0.0
 pyyaml==6.0.1
 
 # Calendar Integration (Google Calendar lines to be removed)
-# google-api-python-client==2.111.0
 # google-auth-httplib2==0.2.0
 # google-auth-oauthlib==1.2.0
 
@@ -35,7 +34,6 @@ selenium==4.16.0
 # Development Tools
 pytest==7.4.3
 black==23.12.1
-flake8==7.0.0
 isort==5.13.2
 
 # Logging and Monitoring
@@ -49,20 +47,18 @@ uuid==1.30
 # Multi-agent framework
 typing-extensions==4.9.0
 
-# API integrations
-duckduckgo-search==4.1.1
+
 
 # Google Calendar API (to be removed)
 # google-auth==2.25.2
 
 # Kakao SDK (if official SDK is used, add here, e.g., kakao-sdk)
-# For now, using requests for Kakao API calls. 
 
 # For Google Calendar API (commented out)
-# google-api-python-client
 # google-auth-httplib2
 # google-auth-oauthlib
 # oauth2client
 
 # Web Search
 duckduckgo-search 
+google-api-python-client

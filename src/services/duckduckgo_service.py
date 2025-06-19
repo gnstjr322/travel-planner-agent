@@ -6,6 +6,7 @@ DuckDuckGo API 연동 서비스 (duckduckgo-search 라이브러리 사용)
 - 뉴스 검색
 - 이미지 검색 등 (라이브러리가 지원하는 기능)
 """
+import asyncio
 from typing import Any, Dict
 
 from duckduckgo_search import DDGS  # 동기 버전 DDGS를 사용
@@ -33,36 +34,47 @@ class DuckDuckGoService:
             "description": result.get("body", ""),
         }
 
+    def _search_sync(
+        self, query: str, max_results: int, region: str, safesearch: str
+    ):
+        """동기적으로 DuckDuckGo 검색을 수행하는 내부 메서드"""
+        with DDGS(proxies=self.proxies, timeout=self.timeout) as ddgs:
+            results = ddgs.text(
+                query,
+                region=region,
+                safesearch=safesearch,
+                max_results=max_results,
+            )
+            return [self._format_result(r) for r in results]
+
     async def search_web(
         self,
         query: str,
         max_results: int = 5,
-        region: str = "wt-wt",
-        safesearch: str = "moderate"  # safesearch 파라미터 추가
+        region: str = "kr-kr",
+        safesearch: str = "moderate",
     ) -> Dict[str, Any]:
         """
         DuckDuckGo 웹 검색.
-        async 메서드 내에서 동기 라이브러리를 호출합니다.
-        성능에 민감한 경우 asyncio.to_thread 사용을 고려해야 합니다.
+        asyncio.to_thread를 사용하여 동기 라이브러리를 논블로킹 방식으로 호출합니다.
         """
         if not query:
             return self._empty_result(query, "검색어가 비어있습니다.")
 
         try:
-            # 동기 메서드 호출, 프록시 및 타임아웃 설정 추가
-            with DDGS(proxies=self.proxies, timeout=self.timeout) as ddgs:
-                results = ddgs.text(
-                    query,
-                    region=region,
-                    safesearch=safesearch,  # safesearch 전달
-                    max_results=max_results
-                )
-                search_results = [self._format_result(r) for r in results]
+            # 동기 함수를 별도의 스레드에서 실행
+            search_results = await asyncio.to_thread(
+                self._search_sync,
+                query,
+                max_results,
+                region,
+                safesearch
+            )
 
             return {
                 "success": True,
                 "query": query,
-                "results": search_results
+                "results": search_results,
             }
 
         except Exception as e:
