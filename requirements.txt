@@ -17,15 +17,16 @@ aiohttp==3.9.1
 pandas==2.1.4
 numpy==1.26.2
 pydantic==2.5.2
+pydantic-settings==2.1.0
 
 # Environment and Configuration
 python-dotenv==1.0.0
 pyyaml==6.0.1
 
-# Calendar Integration
-google-api-python-client==2.111.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.0
+# Calendar Integration (Google Calendar lines to be removed)
+# google-api-python-client==2.111.0
+# google-auth-httplib2==0.2.0
+# google-auth-oauthlib==1.2.0
 
 # Web Scraping (if needed)
 beautifulsoup4==4.12.2
@@ -43,4 +44,25 @@ loguru==0.7.2
 # Additional Utilities
 python-dateutil==2.8.2
 pytz==2023.3
-uuid==1.30 
+uuid==1.30
+
+# Multi-agent framework
+typing-extensions==4.9.0
+
+# API integrations
+duckduckgo-search==4.1.1
+
+# Google Calendar API (to be removed)
+# google-auth==2.25.2
+
+# Kakao SDK (if official SDK is used, add here, e.g., kakao-sdk)
+# For now, using requests for Kakao API calls. 
+
+# For Google Calendar API (commented out)
+# google-api-python-client
+# google-auth-httplib2
+# google-auth-oauthlib
+# oauth2client
+
+# Web Search
+duckduckgo-search 
