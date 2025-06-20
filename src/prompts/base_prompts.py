@@ -181,18 +181,15 @@ class PromptManager:
 
         planner_user = UserPromptTemplate(
             name="planner_user",
-            template="""다음 조건으로 여행 계획을 세워주세요:
+            template="""다음 '사용자 원본 요청'과 '참고 검색 결과'를 바탕으로 상세하고 실행 가능한 여행 계획을 세워주세요.
 
-목적지: {destination}
-여행 기간: {start_date} ~ {end_date}
-예산: {budget}
-인원수: {group_size}명
-숙박 타입: {accommodation_type}
-여행 스타일: {travel_style}
-선호 사항: {preferences}
-제외 사항: {exclusions}
+### 사용자 원본 요청
+{query}
 
-상세하고 실행 가능한 일정을 작성해주세요."""
+### 참고할 검색 결과
+{search_results}
+
+'여행 개요', '일차별 일정', '예상 총 비용', '준비물 체크리스트' 등을 포함하여, 'planner_system' 프롬프트에 정의된 전체 응답 형식에 맞춰서 계획을 작성해주세요."""
         )
 
         # Calendar Agent Templates
@@ -217,6 +214,35 @@ class PromptManager:
 - 알림: 시간"""
         )
 
+        calendar_user = UserPromptTemplate(
+            name="calendar_user",
+            template="""당신은 사용자의 요청과 주어진 여행 계획을 분석하여 캘린더 이벤트 생성을 위한 정확한 정보를 추출하는 전문가입니다.
+
+다음 정보를 바탕으로 JSON 형식의 이벤트 데이터를 생성해주세요.
+
+### 현재 시간
+{current_time}
+
+### 사용자 요청
+"{query}"
+
+### 여행 계획
+{travel_plan}
+
+### 추출해야 할 정보
+- `title`: 이벤트의 제목 (예: "제주도 3박 4일 여행")
+- `start_time`: 이벤트 시작 시간 (ISO 8601 형식: YYYY-MM-DDTHH:MM:SS)
+- `end_time`: 이벤트 종료 시간 (ISO 8601 형식: YYYY-MM-DDTHH:MM:SS)
+- `location`: 이벤트 장소 이름 (문자열, 예: "제주 국제공항")
+- `description`: 이벤트에 대한 상세 설명 (여행 계획 요약, 주요 활동 등)
+- `reminders`: 이벤트 시작 전 알림을 받을 시간(분 단위)의 숫자 배열 (예: [15, 30] -> 15분, 30분 전 알림). 없으면 빈 배열 `[]`.
+
+만약 사용자 요청이나 여행 계획에서 특정 시간 정보(예: 오후 3시)를 찾을 수 없다면, 하루 종일 진행되는 일정으로 간주하고 시간 부분은 09:00:00으로 설정해주세요. 날짜 정보가 없다면 현재 시간 기준으로 내일부터의 날짜로 가정해주세요.
+
+JSON 데이터만 반환해주세요. 다른 설명은 필요 없습니다.
+"""
+        )
+
         # Share Agent Templates
         share_system = SystemPromptTemplate(
             name="share_system",
@@ -236,13 +262,43 @@ class PromptManager:
 - 브랜딩과 디자인 일관성 유지"""
         )
 
+        # Router Agent Template
+        router_system = SystemPromptTemplate(
+            name="router_system",
+            template="""당신은 사용자 요청의 의도를 파악하여 어떤 에이전트에게 작업을 라우팅해야 할지 결정하는 지능형 라우터입니다.
+
+사용자의 최신 요청과 현재 대화 상태를 바탕으로 다음에 실행할 에이전트를 결정해주세요.
+
+[현재 상태]
+- 검색 결과가 있는가? {has_search_results}
+- 수립된 계획이 있는가? {has_plan}
+- 이전에 실행된 에이전트: {executed_agents}
+
+[사용자 요청]
+"{query}"
+
+[라우팅 결정]
+사용자 요청과 `이전에 실행된 에이전트` 목록을 분석하여 다음 중 가장 적절한 하나를 선택하여 응답하세요. **가장 중요한 규칙은 동일한 작업을 반복하지 않는 것입니다.**
+
+- `search`: 여행 장소, 맛집, 활동 등 **새로운 정보 검색**이 필요할 때. **`이전에 실행된 에이전트`에 'search'가 있다면 절대 다시 'search'를 선택하지 마세요.**
+- `planner`: 여행 계획 수립, 수정, 또는 최적화가 필요할 때.
+- `calendar`: 수립된 계획을 캘린더에 등록하거나 수정해야 할 때.
+- `share`: 여행 계획을 다른 사람과 공유하고 싶을 때.
+- `conversation`: 사용자가 단순히 인사하거나, 일반적인 대화를 시도하거나, 여행과 무관한 질문을 할 때.
+- `end`: **요청된 작업이 이미 완료되었을 때.** 예를 들어, 사용자가 '검색'을 요청했고 `이전에 실행된 에이전트` 목록에 이미 'search'가 있다면, 작업이 완료된 것이므로 'end'를 선택해야 합니다. 또는 사용자가 대화를 끝내고 싶을 때 (예: "고마워", "수고했어")도 해당됩니다.
+
+오직 `search`, `planner`, `calendar`, `share`, `conversation`, `end` 중 하나만 소문자로 응답해야 합니다. 다른 설명은 절대 추가하지 마세요."""
+        )
+
         # Register all templates
         self.register_template(search_system)
         self.register_template(search_user)
         self.register_template(planner_system)
         self.register_template(planner_user)
         self.register_template(calendar_system)
+        self.register_template(calendar_user)
         self.register_template(share_system)
+        self.register_template(router_system)
 
 
 # Global prompt manager instance

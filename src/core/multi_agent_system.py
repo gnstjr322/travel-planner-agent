@@ -1,246 +1,194 @@
 """
-Multi-Agent System using LangGraph for Travel Planning.
+Supervisor-based Multi-Agent System using LangGraph.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional, TypedDict
 
-from langchain.schema import HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
-# LangGraph의 상태를 위한 Pydantic 모델 정의
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from ..agents.base_agent import AgentResponse
-from ..agents.calendar_agent import CalendarAgent
+from ..agents.info_collection_agent import InfoCollectionAgent
 from ..agents.planner_agent import PlannerAgent
 from ..agents.search_agent import SearchAgent
-from ..agents.share_agent import ShareAgent
-from ..utils.logger import logger
+from ..config.settings import settings
 
 
-class TravelPlannerState(BaseModel):
-    messages: List[Any] = []
-    current_step: str = "start"
-    user_query: str = ""
-    search_results: Optional[Dict[str, Any]] = None
-    travel_plan: Optional[Dict[str, Any]] = None
-    calendar_events: Optional[List[Dict[str, Any]]] = None
-    shared_plan: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    completed: bool = False
+# Define the state for the graph
+class AgentState(TypedDict):
+    messages: List[BaseMessage]
+    next: str
+    query: Optional[str]
 
 
-class TravelPlannerMultiAgent:
-    """Multi-Agent system for travel planning using LangGraph."""
+# Pydantic model for the supervisor's output
+class SupervisorOutput(BaseModel):
+    next: str
+    query: Optional[str] = Field(
+        description="The specific, targeted query to be passed to the SearchAgent. This should be a concrete search term like 'best restaurants in Seoul' or 'tourist attractions in Jeju'."
+    )
 
-    def __init__(self, openai_api_key: str):
-        if not openai_api_key:
-            raise ValueError("OpenAI API 키가 필요합니다.")
-        self.openai_api_key = openai_api_key
 
-        # Initialize agents
-        self.search_agent = SearchAgent(openai_api_key=self.openai_api_key)
-        self.planner_agent = PlannerAgent(openai_api_key=self.openai_api_key)
-        self.calendar_agent = CalendarAgent()
-        self.share_agent = ShareAgent(openai_api_key=self.openai_api_key)
+class TravelPlannerSupervisor:
+    """Supervisor for the travel planning multi-agent system."""
 
-        # Build the workflow
+    def __init__(self):
+        self.info_collection_agent = InfoCollectionAgent()
+        self.search_agent = SearchAgent()
+        self.planner_agent = PlannerAgent()
+        self.llm = ChatOpenAI(
+            model=settings.openai_model,
+            temperature=0
+        )
         self.workflow = self._build_workflow()
 
+    async def _supervisor_node(self, state: AgentState):
+        """The supervisor node that routes to the next agent and generates queries."""
+        supervisor_prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "당신은 여행 계획을 돕는 AI 에이전트 팀의 슈퍼바이저입니다. "
+                    "당신이 관리하는 에이전트는 정보 수집 'InfoCollectionAgent', 검색 'SearchAgent', 계획 수립 'PlannerAgent'가 있습니다.\n\n"
+                    "**중요: 대화 기록을 주의깊게 분석하여 현재 상태를 정확히 판단하세요.**\n\n"
+                    "다음 규칙을 신중하게 따르세요:\n"
+                    "1. **정보 수집 단계**: 필수 정보(언제, 어디, 며칠, 여행컨셉)가 모두 없거나 일부만 있으면 'InfoCollectionAgent' 호출\n"
+                    "2. **검색 단계**: '✅ 여행 정보가 수집되었습니다!' 메시지가 나타나면 정보 수집 완료로 판단하고 'SearchAgent' 호출\n"
+                    "3. **계획 단계**: 검색 결과가 충분히 수집되면 'PlannerAgent' 호출\n"
+                    "4. **완료**: 여행 계획이 완성되면 'FINISH'\n\n"
+                    "**판단 기준:**\n"
+                    "- 대화에 '✅ 여행 정보가 수집되었습니다!'가 있고 아직 검색하지 않았으면 → SearchAgent\n"
+                    "- 관광지, 맛집, 숙소 등 검색 결과가 있고 아직 계획을 세우지 않았으면 → PlannerAgent\n"
+                    "- 상세한 일정표나 여행 계획이 이미 완성되어 있으면 → FINISH\n"
+                    "- 필수 정보(언제, 어디, 며칠, 여행컨셉) 중 하나라도 없으면 → InfoCollectionAgent\n\n"
+                    "SearchAgent를 호출할 때는 수집된 정보를 바탕으로 구체적인 검색 쿼리를 생성하세요.\n"
+                    "예: '서울 관광지', '부산 맛집', '제주도 호캉스 숙소' 등\n\n"
+                    "당신은 반드시 'next'(호출할 에이전트 이름)와 'query'(SearchAgent에 전달할 검색어, 필요 없는 경우 빈 문자열) 두 개의 키를 가진 JSON 객체를 출력해야 합니다.",
+                ),
+                MessagesPlaceholder(variable_name="messages"),
+            ]
+        )
+        supervisor_chain = supervisor_prompt | self.llm.with_structured_output(
+            schema=SupervisorOutput
+        )
+        result = await supervisor_chain.ainvoke({"messages": state["messages"]})
+        # Type cast to SupervisorOutput to fix linter error
+        supervisor_result = result if isinstance(
+            result, SupervisorOutput) else SupervisorOutput(next="InfoCollectionAgent", query="")
+        return {"next": supervisor_result.next, "query": supervisor_result.query or ""}
+
+    async def _search_node(self, state: AgentState):
+        """Node that runs the search agent with a specific query."""
+        query = state.get("query")
+        if not query:
+            new_message = HumanMessage(
+                content="Search failed: No query provided by supervisor.")
+            return {"messages": state["messages"] + [new_message]}
+
+        response = await self.search_agent.run({"query": query})
+
+        if response.get("success"):
+            content = response.get("data", "검색 결과가 없습니다.")
+        else:
+            content = response.get("message", "검색 중 오류가 발생했습니다.")
+
+        new_message = HumanMessage(content=content)
+        return {"messages": state["messages"] + [new_message]}
+
+    async def _info_collection_node(self, state: AgentState):
+        """Node that runs the info collection agent."""
+        response = await self.info_collection_agent.run({"messages": state["messages"]})
+
+        if response.get("success"):
+            content = response.get("data", "정보 수집을 완료하지 못했습니다.")
+        else:
+            content = response.get("message", "정보 수집 중 오류가 발생했습니다.")
+
+        new_message = HumanMessage(content=content)
+        return {"messages": state["messages"] + [new_message]}
+
+    async def _planner_node(self, state: AgentState):
+        """Node that runs the planner agent."""
+        # The planner agent now takes the whole message history.
+        response = await self.planner_agent.run({"messages": state["messages"]})
+
+        if response.get("success"):
+            content = response.get("data", "계획을 생성하지 못했습니다.")
+        else:
+            content = response.get("message", "계획 생성 중 오류가 발생했습니다.")
+
+        new_message = HumanMessage(content=content)
+        return {"messages": state["messages"] + [new_message]}
+
     def _build_workflow(self):
-        """Build the LangGraph workflow."""
-        workflow = StateGraph(TravelPlannerState)  # Pydantic 모델을 스키마로 사용
+        """Build the LangGraph workflow for the supervisor and agents."""
+        graph = StateGraph(AgentState)
+        graph.add_node("supervisor", self._supervisor_node)
+        graph.add_node("InfoCollectionAgent", self._info_collection_node)
+        graph.add_node("SearchAgent", self._search_node)
+        graph.add_node("PlannerAgent", self._planner_node)
 
-        # Define nodes
-        workflow.add_node("router", self._router_node)
-        workflow.add_node("search", self._search_node)
-        workflow.add_node("planner", self._plan_node)
-        workflow.add_node("calendar", self._calendar_node)
-        workflow.add_node("share", self._share_node)
+        graph.add_edge("InfoCollectionAgent", "supervisor")
+        graph.add_edge("SearchAgent", "supervisor")
+        graph.add_edge("PlannerAgent", "supervisor")
 
-        # Define edges
-        workflow.set_entry_point("router")
+        graph.add_conditional_edges(
+            "supervisor",
+            lambda state: state["next"],
+            {
+                "InfoCollectionAgent": "InfoCollectionAgent",
+                "SearchAgent": "SearchAgent",
+                "PlannerAgent": "PlannerAgent",
+                "FINISH": END,
+            },
+        )
+        graph.set_entry_point("supervisor")
 
-        conditional_map = {
-            "search": "search",
-            "planner": "planner",
-            "calendar": "calendar",
-            "share": "share",
-            "end": END,
+        return graph.compile()
+
+    async def process_query(self, query: str, conversation_history: Optional[List[BaseMessage]] = None) -> dict:
+        """Process a user query through the multi-agent system using the supervisor."""
+        if conversation_history is None:
+            conversation_history = []
+
+        # 새로운 사용자 메시지 추가
+        conversation_history.append(HumanMessage(content=query))
+
+        # 초기 상태 설정
+        initial_state = {
+            "messages": conversation_history,
+            "next": "",
+            "query": ""
         }
-        workflow.add_conditional_edges(
-            "router",
-            self._route_decision,
-            conditional_map,
-        )
 
-        workflow.add_edge("search", END)
-        workflow.add_edge("planner", END)
-        workflow.add_edge("calendar", END)
-        workflow.add_edge("share", END)
-
-        return workflow.compile()
-
-    async def _router_node(self, state: TravelPlannerState) -> TravelPlannerState:
-        """Determine the next step based on the user query."""
-        user_query = state.user_query.lower()
-        next_step = self._route_query(state)
-        state.current_step = next_step
-        log_message = (
-            f"Routing to: {next_step} for query: '{user_query}'"
-        )
-        logger.info(log_message)
-        return state
-
-    def _route_decision(self, state: TravelPlannerState) -> str:
-        """Decide which node to route to next based on current_step."""
-        current_step = state.current_step
-        logger.info(f"Decision: Routing to '{current_step}'")
-        if current_step in ["search", "planner", "calendar", "share"]:
-            return current_step
-        return "end"
-
-    async def _search_node(self, state: TravelPlannerState) -> TravelPlannerState:
-        """Handle search requests."""
         try:
-            user_query = state.user_query
-            logger.info(f"Search node processing query: '{user_query}'")
-
-            result_dict = await self.search_agent.process(
-                input_data={"query": user_query, "context": None}
+            # 슈퍼바이저가 관리하는 워크플로우 실행 (recursion limit 설정)
+            final_state = await self.workflow.ainvoke(
+                initial_state,
+                config={"recursion_limit": 10}
             )
 
-            response = AgentResponse(**result_dict)
-            state.search_results = response.data
-            state.completed = True
-            logger.info("Search node completed.")
+            # 최종 메시지 추출
+            final_messages = final_state.get("messages", [])
+            if final_messages:
+                # 마지막 메시지가 응답
+                last_message = final_messages[-1]
+                response_content = last_message.content
+
+                return {
+                    "success": True,
+                    "response": response_content,
+                    "conversation_history": final_messages
+                }
+            else:
+                return {
+                    "success": False,
+                    "response": "워크플로우에서 응답을 생성하지 못했습니다."
+                }
+
         except Exception as e:
-            error_msg = f"Search operation failed: {str(e)}"
-            logger.error(f"Search node execution failed: {str(e)}")
-            state.error = error_msg
-            state.completed = True
-        return state
-
-    async def _plan_node(self, state: TravelPlannerState) -> TravelPlannerState:
-        """Handle travel planning requests."""
-        try:
-            user_query = state.user_query
-            search_results = state.search_results
-            logger.info(f"Planner node processing query: '{user_query}'")
-
-            context_data = {
-                "user_query": user_query,
-                "search_results": search_results,
+            return {
+                "success": False,
+                "response": f"워크플로우 실행 중 오류가 발생했습니다: {str(e)}"
             }
-
-            result_dict = await self.planner_agent.process(
-                input_data={"query": user_query, "context": context_data}
-            )
-
-            response = AgentResponse(**result_dict)
-            state.travel_plan = response.data
-            state.completed = True
-            logger.info("Planner node completed.")
-        except Exception as e:
-            error_msg = f"Planning operation failed: {str(e)}"
-            logger.error(f"Planner node execution failed: {str(e)}")
-            state.error = error_msg
-            state.completed = True
-        return state
-
-    def _calendar_node(self, state: TravelPlannerState) -> TravelPlannerState:
-        """Handle calendar operations."""
-        try:
-            user_query = state.user_query
-            logger.info(f"Calendar node processing query: '{user_query}'")
-
-            travel_plan = state.travel_plan
-            search_results = state.search_results
-
-            context_data = {
-                "travel_info": travel_plan,
-                "destination_details": search_results
-            }
-
-            response = self.calendar_agent.process(
-                query=user_query, context=context_data
-            )
-
-            state.calendar_events = [response.data] if response.data else []
-            state.completed = True
-            logger.info("Calendar node completed.")
-
-        except Exception as e:
-            error_msg = f"Calendar operation failed: {str(e)}"
-            logger.error(f"Calendar node execution failed: {str(e)}")
-            state.error = error_msg
-            state.completed = True
-        return state
-
-    async def _share_node(self, state: TravelPlannerState) -> TravelPlannerState:
-        """Handle sharing requests."""
-        try:
-            user_query = state.user_query
-            logger.info(f"Share node processing query: '{user_query}'")
-
-            travel_plan = state.travel_plan
-            if not travel_plan:
-                logger.warning("No travel plan found to share.")
-                state.error = "No travel plan to share."
-                state.completed = True
-                return state
-
-            context_data = {
-                "plan_data": travel_plan,
-                "share_method": "kakao"
-            }
-
-            result_dict = await self.share_agent.process(
-                input_data={"query": user_query, "context": context_data}
-            )
-
-            response = AgentResponse(**result_dict)
-            state.shared_plan = response.data
-            state.completed = True
-            logger.info("Share node completed.")
-
-        except Exception as e:
-            error_msg = f"Share operation failed: {str(e)}"
-            logger.error(f"Share node execution failed: {str(e)}")
-            state.error = error_msg
-            state.completed = True
-        return state
-
-    async def process_query(self, user_query: str) -> Dict[str, Any]:
-        """Process a user query through the multi-agent system."""
-        initial_state = TravelPlannerState(
-            messages=[HumanMessage(content=user_query)],
-            user_query=user_query,
-            current_step="start"
-        )
-
-        final_state = await self.workflow.ainvoke(initial_state.dict())
-
-        return final_state
-
-    def _route_query(self, state: TravelPlannerState) -> str:
-        """
-        Determines the next step based on user query analysis.
-        This is a simplified keyword-based router.
-        A more advanced implementation would use an LLM call.
-        """
-        query = state.user_query.lower()
-
-        if "검색" in query or "찾아줘" in query or "알려줘" in query:
-            return "search"
-        if "계획" in query or "세워줘" in query or "짜줘" in query:
-            return "planner"
-        if "캘린더" in query or "일정" in query or "등록" in query:
-            return "calendar"
-        if "공유" in query or "보내줘" in query:
-            return "share"
-
-        # Default to planner if no specific keyword is found
-        # but there is a substantive query
-        if len(query.split()) > 2:
-            return "planner"
-
-        return "end"

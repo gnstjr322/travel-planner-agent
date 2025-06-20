@@ -4,13 +4,15 @@ Streamlit UI for Travel Planner Multi-Agent System.
 import asyncio
 import os
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import streamlit as st
 from dotenv import load_dotenv
 
-from src.config.api_config import api_config
-from src.core.multi_agent_system import TravelPlannerMultiAgent
+from src.config.settings import settings
+from src.core.multi_agent_system import TravelPlannerSupervisor
 
 # Add the project root to sys.path
 # This assumes streamlit_app.py is at src/ui/streamlit_app.py
@@ -25,33 +27,47 @@ load_dotenv()
 
 # Page configuration
 st.set_page_config(
-    page_title="🌍 여행 플래너 AI",
+    page_title="여행 플래너 AI",
     page_icon="🌍",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 
+def run_async_in_thread(coro):
+    """Streamlit에서 안전하게 비동기 함수를 실행하는 헬퍼 함수"""
+    def run_in_thread():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    with ThreadPoolExecutor() as executor:
+        future = executor.submit(run_in_thread)
+        return future.result()
+
+
 class StreamlitTravelPlanner:
     """Streamlit interface for the travel planner."""
 
     def __init__(self):
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        if not self.openai_api_key:
-            st.error("OpenAI API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.")
-            st.stop()
-
         # Initialize multi-agent system
         if 'multi_agent' not in st.session_state:
-            st.session_state.multi_agent = TravelPlannerMultiAgent(
-                self.openai_api_key
-            )
+            try:
+                st.session_state.multi_agent = TravelPlannerSupervisor()
+            except Exception as e:
+                st.error(f"멀티 에이전트 시스템 초기화 실패: {str(e)}")
+                st.stop()
 
         # Initialize session state
         if 'messages' not in st.session_state:
             st.session_state.messages = []
         if 'current_plan' not in st.session_state:
             st.session_state.current_plan = None
+        if 'conversation_history' not in st.session_state:
+            st.session_state.conversation_history = []
 
     def render_sidebar(self):
         """Render the sidebar with options and controls."""
@@ -62,6 +78,7 @@ class StreamlitTravelPlanner:
             if st.button("대화 기록 초기화"):
                 st.session_state.messages = []
                 st.session_state.current_plan = None
+                st.session_state.conversation_history = []
                 st.rerun()
 
             st.markdown("### 📋 빠른 액션")
@@ -77,13 +94,24 @@ class StreamlitTravelPlanner:
                     st.rerun()
 
             with col2:
-                if st.button("📅 일정 작성"):
+                if st.button("📅 여행 계획"):
                     st.session_state.messages.append({
                         "role": "user",
-                        "content": "3박 4일 제주도 여행 계획을 세워주세요",
+                        "content": "여행 계획을 세워주세요",
                         "timestamp": datetime.now()
                     })
                     st.rerun()
+
+            st.markdown("### 💡 사용 안내")
+            st.info("""
+            **여행 계획 요청 시 필요한 정보:**
+            
+            📅 **언제**: 여행 날짜 (예: 12월 25일)
+            📍 **어디**: 여행 목적지 (예: 서울, 부산, 제주도)
+            ⏰ **며칠**: 여행 기간 (예: 1박2일, 2박3일)
+            
+            이 정보들이 없으면 AI가 먼저 질문할 거예요!
+            """)
 
             st.markdown("### ⚙️ 설정")
             temperature = st.slider("AI 창의성", 0.0, 1.0, 0.7, 0.1)
@@ -93,23 +121,32 @@ class StreamlitTravelPlanner:
 
             st.markdown("### 🔗 API 연동 상태")
             api_status = {
-                "OpenAI": bool(api_config.openai_api_key),
-                "Kakao Map": bool(api_config.kakao_rest_api_key),
-                "Kakao Calendar": bool(os.getenv("KAKAO_ACCESS_TOKEN")) and
-                bool(api_config.kakao_client_id),
-                "Naver Search": bool(api_config.naver_client_id) and
-                bool(api_config.naver_client_secret)
+                "OpenAI": bool(settings.openai_api_key),
+                "Google Search": bool(settings.google_search_api_key) and bool(settings.google_search_cx),
+                "Kakao Map": bool(settings.kakao_rest_api_key),
+                "Kakao Calendar": bool(settings.kakao_refresh_token)
             }
             for service, status in api_status.items():
                 if status:
-                    st.success(f"✅ {service.title()}: 연결됨")
+                    st.success(f"✅ {service}: 연결됨")
                 else:
-                    st.warning(f"⚠️ {service.title()}: 미설정")
+                    st.warning(f"⚠️ {service}: 미설정")
 
     def render_main_chat(self):
         """Render the main chat interface."""
-        st.title("🌍 여행 플래너 AI 에이전트")
-        st.markdown("여행 계획부터 일정 관리까지, AI가 도와드립니다! 💫")
+        st.title("🌍 여행 플래너 AI")
+        st.markdown("여행 정보 수집부터 계획 수립까지, 단계별로 AI가 도와드립니다! 💫")
+
+        # 진행 단계 표시
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown("**1단계** 📝 정보 수집")
+        with col2:
+            st.markdown("**2단계** 🔍 장소 검색")
+        with col3:
+            st.markdown("**3단계** 📅 계획 생성")
+        st.markdown("---")
 
         # Display chat messages
         for message in st.session_state.messages:
@@ -142,17 +179,33 @@ class StreamlitTravelPlanner:
             # Process with multi-agent system
             with st.chat_message("assistant"):
                 with st.spinner("AI 에이전트들이 작업 중입니다... 🤖"):
-                    response = asyncio.run(
-                        st.session_state.multi_agent.process_query(prompt)
-                    )
+                    try:
+                        # Streamlit에서 안전한 비동기 실행
+                        response = run_async_in_thread(
+                            st.session_state.multi_agent.process_query(
+                                prompt,
+                                st.session_state.conversation_history
+                            )
+                        )
+                    except Exception as e:
+                        st.error(f"❌ 처리 중 오류가 발생했습니다: {str(e)}")
+                        response = {
+                            "success": False,
+                            "response": f"오류가 발생했습니다: {str(e)}",
+                            "conversation_history": st.session_state.conversation_history
+                        }
 
                 # Display response
                 self.display_agent_response(response)
 
+                # Update conversation history
+                if response.get("conversation_history"):
+                    st.session_state.conversation_history = response["conversation_history"]
+
                 # Add assistant message to session state
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": self.format_response_for_display(response),
+                    "content": response.get("response", "No response"),
                     "timestamp": datetime.now(),
                     "response_data": response
                 })
@@ -160,98 +213,19 @@ class StreamlitTravelPlanner:
     def display_agent_response(self, response: dict):
         """Display the multi-agent response in a formatted way."""
         if not response.get("success"):
-            st.error(f"❌ 오류가 발생했습니다: {response.get('error', 'Unknown error')}")
+            st.error(
+                f"❌ 오류가 발생했습니다: {response.get('response', 'Unknown error')}")
             return
 
-        current_step = response.get("current_step", "")
-        st.info(f"🎯 처리된 작업: **{current_step}**")
-
-        # Display search results
-        if response.get("search_results"):
-            st.subheader("🔍 검색 결과")
-            search_data = response["search_results"]
-            if search_data.get("success"):
-                st.success(search_data.get("message", ""))
-                with st.expander("상세 검색 결과 보기"):
-                    st.write(search_data.get("data", {}))
-
-        # Display travel plan
-        if response.get("travel_plan"):
-            st.subheader("📋 여행 계획")
-            plan_data = response["travel_plan"]
-            if plan_data.get("success"):
-                st.success(plan_data.get("message", ""))
-                with st.expander("여행 계획 상세보기"):
-                    plan_info = plan_data.get("data", {})
-
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("목적지", plan_info.get("destination", "N/A"))
-                    with col2:
-                        st.metric("출발일", plan_info.get("start_date", "N/A"))
-                    with col3:
-                        st.metric("종료일", plan_info.get("end_date", "N/A"))
-
-                    if plan_info.get("itinerary"):
-                        st.markdown("### 📝 상세 일정")
-                        st.write(plan_info["itinerary"])
-
-                # Store current plan for calendar integration
-                st.session_state.current_plan = plan_data
-
-        # Display calendar events
-        if response.get("calendar_events"):
-            st.subheader("📅 캘린더 일정")
-            for event in response["calendar_events"]:
-                if event.get("success"):
-                    st.success(event.get("message", ""))
-                    with st.expander("일정 상세보기"):
-                        st.json(event.get("data", {}))
-
-        # Display shared plan
-        if response.get("shared_plan"):
-            st.subheader("🔗 공유 링크")
-            share_data = response["shared_plan"]
-            if share_data.get("success"):
-                st.success(share_data.get("message", ""))
-                share_info = share_data.get("data", {})
-                if share_info.get("share_url"):
-                    st.code(share_info["share_url"], language="text")
-                    st.button("링크 복사", key="copy_link")
+        response_content = response.get("response", "죄송합니다, 답변을 생성하지 못했습니다.")
+        st.markdown(response_content)
 
     def format_response_for_display(self, response: dict) -> str:
-        """Format response for chat history display."""
-        if not response.get("success"):
-            return f"❌ 오류: {response.get('error', 'Unknown error')}"
-
-        current_step = response.get("current_step", "")
-        # 메시지를 분리하여 가독성 및 라인 길이 준수
-        completion_message = f"🎯 **{current_step}** 작업을 완료했습니다."
-        formatted_response = f"{completion_message}\n\n"
-
-        # Add summary based on the step
-        if response.get("search_results"):
-            # 문자열을 괄호로 묶어 여러 줄로 나누기
-            formatted_response += (
-                "🔍 장소 검색이 완료되었습니다.\n"
-            )
-
-        if response.get("travel_plan"):
-            # 문자열을 괄호로 묶어 여러 줄로 나누기
-            formatted_response += (
-                "📋 여행 계획이 생성되었습니다.\n"
-            )
-
-        if response.get("calendar_events"):
-            formatted_response += "📅 캘린더에 일정이 추가되었습니다.\n"
-
-        if response.get("shared_plan"):
-            # 문자열을 괄호로 묶어 여러 줄로 나누기
-            formatted_response += (
-                "🔗 공유 링크가 생성되었습니다.\n"
-            )
-
-        return formatted_response
+        """Formats the agent's response for display in the chat history."""
+        if response.get("success"):
+            return response.get("response", "No content")
+        else:
+            return f"Error: {response.get('response', 'Unknown error')}"
 
     def render_status_panel(self):
         """Render system status and metrics."""
@@ -274,7 +248,7 @@ class StreamlitTravelPlanner:
                 st.metric("장소 검색", search_count)
 
             with col4:
-                st.metric("활성화된 에이전트", "4개")
+                st.metric("활성화된 에이전트", "3개")
 
     def run(self):
         """Run the Streamlit application."""

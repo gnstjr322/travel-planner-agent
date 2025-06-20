@@ -3,7 +3,7 @@ Share Agent for sharing travel plans.
 """
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import aiohttp
@@ -16,7 +16,7 @@ from .base_agent import AgentResponse, BaseAgent
 class ShareAgent(BaseAgent):
     """Agent responsible for sharing travel plans."""
 
-    def __init__(self, openai_api_key: str):
+    def __init__(self):
         super().__init__(
             name="ShareAgent",
             description="Handles sharing of travel plans through various formats and channels"

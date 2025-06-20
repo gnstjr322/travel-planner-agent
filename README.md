@@ -4,10 +4,11 @@
 
 ## 🚀 주요 기능
 
+- **📝 여행 정보 수집**: 필수 정보(언제, 어디, 며칠) 자동 수집
 - **🔍 여행 장소 검색**: 에이전트와의 대화를 통한 여행지 검색
 - **📋 여행 계획서 작성**: AI 기반 맞춤형 여행 일정 생성
-- **📅 캘린더 연동**: 여행 일정 등록, 조회, 수정, 삭제
-- **📤 계획서 공유**: 외부 공유 기능
+- **📅 캘린더 연동**: 여행 일정 등록, 조회, 수정, 삭제 (개발 중)
+- **📤 계획서 공유**: 외부 공유 기능 (개발 중)
 - **🛡️ 신뢰성 보장**: 거짓 정보 방지 시스템
 
 ## 🛠️ 기술 스택
@@ -27,13 +28,24 @@ travel-planner-agent/
 │   └── Dockerfile
 ├── src/                    # 소스 코드
 │   ├── agents/            # 멀티 에이전트
-│   ├── models/            # 데이터 모델
+│   │   ├── info_collection_agent.py  # 정보 수집 에이전트
+│   │   ├── search_agent.py          # 검색 에이전트
+│   │   ├── planner_agent.py         # 계획 수립 에이전트
+│   │   ├── calendar_agent.py        # 캘린더 에이전트 (개발 중)
+│   │   └── share_agent.py           # 공유 에이전트 (개발 중)
+│   ├── core/              # 멀티 에이전트 시스템 핵심
+│   │   └── multi_agent_system.py
 │   ├── services/          # 외부 API 서비스
+│   │   ├── google_search_service.py
+│   │   ├── kakao_service.py
+│   │   └── kakao_calendar_service.py
+│   ├── tools/             # 에이전트 도구
+│   │   ├── search_tools.py
+│   │   └── planner_tools.py
+│   ├── config/            # 설정 및 구성
+│   ├── prompts/           # 프롬프트 템플릿
 │   ├── utils/             # 유틸리티
 │   └── ui/                # Streamlit UI
-├── tests/                 # 테스트 코드
-├── docs/                  # 문서
-├── config/                # 설정 파일
 ├── requirements.txt       # Python 의존성
 ├── docker-compose.yml     # Docker Compose 설정
 └── README.md
@@ -143,11 +155,24 @@ STREAMLIT_SERVER_ADDRESS=0.0.0.0
 
 ```bash
 # Streamlit 앱 실행
-streamlit run src/ui/main.py
+streamlit run src/ui/streamlit_app.py
 
 # 또는 Docker 환경에서
-docker-compose exec travel-planner streamlit run src/ui/main.py
+docker-compose exec travel-planner streamlit run src/ui/streamlit_app.py
+
+# 또는 app.py를 통한 실행
+python app.py
 ```
+
+## 🎯 사용 방법
+
+1. **여행 계획 요청**: "여행 계획을 세워주세요"라고 입력
+2. **정보 수집 단계**: AI가 다음 정보를 질문합니다:
+   - 📅 **언제**: 여행 날짜 (예: 12월 25일)
+   - 📍 **어디**: 여행 목적지 (예: 서울, 부산, 제주도)
+   - ⏰ **며칠**: 여행 기간 (예: 1박2일, 2박3일)
+3. **검색 단계**: 해당 지역의 관광지, 맛집, 숙소 정보 자동 검색
+4. **계획 생성**: 수집된 정보를 바탕으로 맞춤형 여행 계획 생성
 
 ## 📝 API 키 발급 가이드
 
