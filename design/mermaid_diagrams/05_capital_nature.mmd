@@ -1,0 +1,34 @@
+%% 05_capital_nature: 수도권 근교 당일치기 자연 즐기기 좋은 곳 추천해줘
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant LocationSearchAgent
+    participant VerifierAgent
+    participant PlannerAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "수도권 근교 당일치기 자연 즐기기 좋은 곳 추천해줘"
+    Supervisor->>LocationSearchAgent: "수도권 2시간 내 자연 명소 검색"
+    LocationSearchAgent-->>Supervisor: "남한산성, 북한산, 가평 자라섬, 양평 두물머리 등"
+    
+    par 정보 검증 및 일정 구성
+        Supervisor->>VerifierAgent: "기상 조건 및 접근성 확인"
+    and
+        Supervisor->>PlannerAgent: "당일치기 최적 동선 구성"
+    end
+    
+    VerifierAgent-->>Supervisor: "날씨 양호, 대중교통 운행 정상"
+    PlannerAgent-->>Supervisor: "출발-도착 시간 포함 일정 완성"
+    
+    Supervisor-->>User: "추천 장소 3곳 - 선호하는 액티비티가 있나요? (등산/산책/수상레저)"
+    User->>Supervisor: "가벼운 산책 위주로 해주세요"
+    
+    Supervisor->>PlannerAgent: "산책 중심 코스로 재구성"
+    PlannerAgent-->>Supervisor: "두물머리 → 세미원 → 용문산 자연휴양림 코스"
+    
+    Supervisor->>SharingAgent: "수도권 당일치기 자연 여행 정보 공유"
+    SharingAgent-->>User: "자연 힐링 당일치기 계획 완료"
+    
+    Note over LocationSearchAgent: 거리 기반 필터링
+    Note over VerifierAgent,PlannerAgent: 병렬 처리로 시간 단축
+    Note over Supervisor,User: 사용자 취향 반영

@@ -1,0 +1,23 @@
+%% 02_jeonju_food: 전주 당일치기, 맛집만 추천해줘
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant LocationSearchAgent
+    participant VerifierAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "전주 당일치기, 맛집만 추천해줘"
+    Supervisor->>LocationSearchAgent: "전주 대표 맛집 검색 (당일치기 동선 고려)"
+    LocationSearchAgent-->>Supervisor: "한옥마을 비빔밥, 콩나물국밥, 전주한정식 등"
+    
+    alt 맛집 정보 검증 필요
+        Supervisor->>VerifierAgent: "영업시간, 휴무일, 폐업 여부 확인"
+        VerifierAgent-->>Supervisor: "검증 완료 - 운영 중인 맛집만 선별"
+    end
+    
+    Supervisor->>SharingAgent: "전주 맛집 리스트 및 동선 정보 공유"
+    SharingAgent-->>User: "전주 당일치기 맛집 투어 완료"
+    
+    Note over User: PlannerAgent, CalendarAgent 생략
+    Note over LocationSearchAgent: 맛집 특화 검색
+    Note over VerifierAgent: 실시간 영업 정보 확인

@@ -1,210 +1,166 @@
-# 🌍 Travel Planner Multi-Agent
+# 여행 계획 AI Assistance - Travel Planner Agent
 
-여행 일정을 계획해주는 멀티 에이전트 시스템입니다. LangChain과 LangGraph를 활용하여 대화형 여행 계획 서비스를 제공합니다.
+AI 기반 멀티 에이전트 시스템을 활용한 지능형 여행 계획 서비스입니다.
 
-## 🚀 주요 기능
+## 🌟 주요 기능
 
-- **📝 여행 정보 수집**: 필수 정보(언제, 어디, 며칠) 자동 수집
-- **🔍 여행 장소 검색**: 에이전트와의 대화를 통한 여행지 검색
-- **📋 여행 계획서 작성**: AI 기반 맞춤형 여행 일정 생성
-- **📅 캘린더 연동**: 여행 일정 등록, 조회, 수정, 삭제 (개발 중)
-- **📤 계획서 공유**: 외부 공유 기능 (개발 중)
-- **🛡️ 신뢰성 보장**: 거짓 정보 방지 시스템
+- **멀티 에이전트 시스템**: 5개의 전문 에이전트가 협력하여 최적의 여행 계획 제공
+- **Agent 간 직접 통신**: Network 패턴으로 Agent들이 서로 직접 통신하며 효율적인 워크플로우 구현
+- **지능형 라우팅**: 각 Agent가 작업 결과에 따라 다음 단계를 자동으로 결정
+- **실시간 정보 검색**: DuckDuckGo를 통한 최신 여행 정보 수집
+- **정보 검증**: 수집된 정보의 정확성을 자동으로 검증
+- **캘린더 연동**: 여행 일정을 자동으로 캘린더에 등록
+- **공유 기능**: 완성된 여행 계획을 쉽게 공유
+
+## 🤖 에이전트 구조
+
+### Network 패턴 (Agent 직접 통신)
+현재 시스템은 Agent들이 서로 직접 통신할 수 있는 Network 패턴을 사용합니다:
+
+```
+Supervisor ──┬─→ Planner ──┬─→ Searcher ──┬─→ Verifier ──┬─→ Calendar ──→ Sharer ──→ END
+             │             │              │              │              │
+             │             └─→ Verifier   └─→ Planner    ├─→ Planner    └─→ END
+             │                             │              └─→ Sharer
+             ├─→ Searcher ──┬─→ Verifier   └─→ Supervisor
+             │              └─→ Planner
+             ├─→ Verifier ──┬─→ Planner
+             │              ├─→ Calendar
+             │              └─→ Sharer
+             ├─→ Calendar ──┬─→ Sharer
+             │              └─→ END
+             └─→ Sharer ────→ END
+```
+
+### 에이전트 상세
+
+1. **Supervisor Agent** 🎯
+   - 사용자 요청을 분석하여 적절한 첫 번째 에이전트 선택
+   - 전체 워크플로우 조율
+
+2. **Planner Agent** 📋
+   - 여행 계획 생성 및 수정
+   - 다음 단계: 검색 → 검증 → 캘린더 → 완료
+
+3. **Searcher Agent** 🔍
+   - 여행지 정보, 맛집, 숙소 등 실시간 검색
+   - 다음 단계: 검증 → 계획 수정
+
+4. **Verifier Agent** ✅
+   - 검색된 정보의 정확성 검증
+   - 다음 단계: 계획 수정 → 캘린더 → 공유
+
+5. **Calendar Agent** 📅
+   - 여행 일정을 캘린더 이벤트로 변환
+   - 다음 단계: 공유
+
+6. **Sharer Agent** 📤
+   - 완성된 여행 계획 포맷팅 및 공유 링크 생성
+   - 다음 단계: 완료
+
+## 🚀 지능형 라우팅 시스템
+
+각 Agent는 작업 완료 후 다음 단계를 자동으로 결정합니다:
+
+### 키워드 기반 라우팅
+- **"검색이 필요합니다"** → Searcher Agent로 이동
+- **"검증이 필요합니다"** → Verifier Agent로 이동  
+- **"캘린더 등록이 필요합니다"** → Calendar Agent로 이동
+- **"공유가 필요합니다"** → Sharer Agent로 이동
+- **"작업 완료"** → 워크플로우 종료
+
+### 기본 라우팅 규칙
+- Planner → Searcher (기본값)
+- Searcher → Verifier (기본값)
+- Verifier → Calendar (기본값)
+- Calendar → Sharer (기본값)
+- Sharer → END (항상)
 
 ## 🛠️ 기술 스택
 
-- **LLM Framework**: LangChain, LangGraph
+- **Framework**: LangGraph (Multi-Agent Orchestration)
+- **LLM**: OpenAI GPT-4
+- **Search**: DuckDuckGo Search API
 - **UI**: Streamlit
-- **LLM Model**: OpenAI GPT-4
-- **External APIs**: Kakao Map, Naver Search, Google Calendar
-- **Development**: Docker, DevContainer
+- **Language**: Python 3.11+
 
-## 🏗️ 프로젝트 구조
+## 📦 설치 및 실행
 
-```
-travel-planner-agent/
-├── .devcontainer/          # DevContainer 설정
-│   ├── devcontainer.json
-│   └── Dockerfile
-├── src/                    # 소스 코드
-│   ├── agents/            # 멀티 에이전트
-│   │   ├── info_collection_agent.py  # 정보 수집 에이전트
-│   │   ├── search_agent.py          # 검색 에이전트
-│   │   ├── planner_agent.py         # 계획 수립 에이전트
-│   │   ├── calendar_agent.py        # 캘린더 에이전트 (개발 중)
-│   │   └── share_agent.py           # 공유 에이전트 (개발 중)
-│   ├── core/              # 멀티 에이전트 시스템 핵심
-│   │   └── multi_agent_system.py
-│   ├── services/          # 외부 API 서비스
-│   │   ├── google_search_service.py
-│   │   ├── kakao_service.py
-│   │   └── kakao_calendar_service.py
-│   ├── tools/             # 에이전트 도구
-│   │   ├── search_tools.py
-│   │   └── planner_tools.py
-│   ├── config/            # 설정 및 구성
-│   ├── prompts/           # 프롬프트 템플릿
-│   ├── utils/             # 유틸리티
-│   └── ui/                # Streamlit UI
-├── requirements.txt       # Python 의존성
-├── docker-compose.yml     # Docker Compose 설정
-└── README.md
-```
-
-## 🐳 개발 환경 설정
-
-### 1. DevContainer 사용 (권장)
-
+### 1. 저장소 클론
 ```bash
-# VS Code에서 프로젝트 열기
-code .
-
-# Command Palette (Ctrl+Shift+P)에서
-# "Dev Containers: Reopen in Container" 선택
+git clone <repository-url>
+cd travel-planner-agent
 ```
 
-### 2. Docker Compose 사용
-
+### 2. 의존성 설치
 ```bash
-# 컨테이너 빌드 및 실행
-docker-compose up -d
-
-# 컨테이너 접속
-docker-compose exec travel-planner bash
-```
-
-### 3. 로컬 환경 설정
-
-```bash
-# 가상환경 생성
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate   # Windows
-
-# 의존성 설치
 pip install -r requirements.txt
 ```
 
-## 🔧 환경 설정
-
-### 1. 환경 변수 설정
-
-프로젝트 루트에 `.env` 파일을 생성하고 다음 내용을 필요에 따라 추가하세요:
-
+### 3. 환경 변수 설정
+`.env` 파일을 생성하고 다음 내용을 추가:
 ```bash
-# OpenAI API
 OPENAI_API_KEY=your_openai_api_key_here
-
-# Kakao APIs
-KAKAO_REST_API_KEY=your_kakao_rest_api_key_here # 주로 지도, 로컬 검색용
-KAKAO_CLIENT_ID=your_kakao_client_id_here     # OAuth 인증용 (톡캘린더 등 사용자 정보 기반 API)
-# KAKAO_REDIRECT_URI=your_kakao_redirect_uri_here # OAuth 리다이렉트 URI
-# KAKAO_APP_ADMIN_KEY=your_kakao_app_admin_key_here # 일부 공개 API용 (필요시)
-# KAKAO_ACCESS_TOKEN=user_kakao_access_token # 개발 및 테스트 시 직접 발급한 액세스 토큰 (OAuth 흐름 구현 전)
-
-# Naver API (선택사항)
-NAVER_CLIENT_ID=your_naver_client_id
-NAVER_CLIENT_SECRET=your_naver_client_secret
-
-# 기타 API 키 (Amadeus, Google Maps 등 대체재 또는 추가 기능용)
-# GOOGLE_MAPS_API_KEY=your_google_maps_api_key # 카카오맵 대신 사용 시
-AMADEUS_API_KEY=your_amadeus_api_key
-AMADEUS_API_SECRET=your_amadeus_api_secret
-BOOKING_API_KEY=your_booking_api_key
-
-# Application Settings
-APP_TIMEZONE=Asia/Seoul
-LOG_LEVEL=INFO
-LOG_FILE=logs/app.log
-
-# Streamlit configuration
-STREAMLIT_SERVER_PORT=8501
-STREAMLIT_SERVER_ADDRESS=0.0.0.0
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your_langsmith_api_key_here
 ```
 
-### 2. 카카오 API 설정
+### 4. 애플리케이션 실행
 
-#### 2.1 카카오 개발자 등록 및 앱 생성
-1.  [카카오 개발자 (Kakao Developers)](https://developers.kakao.com/) 사이트에 접속하여 로그인 또는 회원가입합니다.
-2.  "내 애플리케이션"에서 "애플리케이션 추가하기"를 선택합니다.
-3.  앱 아이콘, 앱 이름을 입력하고 사업자명(개인일 경우 개인)을 입력하여 앱을 생성합니다.
-
-#### 2.2 앱 키 확인
--   생성된 애플리케이션 선택 > 앱 설정 > 요약 정보에서 **REST API 키**를 확인하여 `.env` 파일의 `KAKAO_REST_API_KEY`에 설정합니다. (주로 카카오맵, 로컬 API 등에 사용)
-
-#### 2.3 플랫폼 설정
--   앱 설정 > 플랫폼 > Web 플랫폼 등록: 서비스할 웹 주소를 등록합니다 (예: `http://localhost:8501` для Streamlit 로컬 테스트).
--   OAuth 리다이렉트 URI를 사용할 경우, 여기에 등록해야 합니다. (예: `http://localhost:8501/oauth`)
-
-#### 2.4 카카오 로그인 및 동의 항목 설정
--   제품 설정 > 카카오 로그인: "활성화 설정"을 ON으로 변경합니다.
--   **Redirect URI 등록**: 카카오 로그인을 통해 액세스 토큰을 발급받을 리다이렉트 URI를 등록합니다. (구현 방식에 따라 필요)
--   **동의항목**:
-    -   개인정보: 닉네임, 프로필 사진 (선택)
-    -   **카카오 서비스**: **카카오톡 캘린더 (필수)** - "일정 만들기", "일정 읽기", "캘린더 읽기" 등의 필요한 모든 권한을 설정하고 동의를 받도록 합니다. "동의 화면 미리보기"로 확인 가능.
-    -   필요한 동의항목을 설정하고, "필수 동의" 또는 "선택 동의" 여부를 결정합니다. (개인정보보호법 준수)
-
-#### 2.5 톡캘린더 API 사용을 위한 추가 정보
--   카카오톡 캘린더 API는 주로 OAuth 2.0 기반의 사용자 토큰을 사용하여 호출합니다.
--   `.env` 파일의 `KAKAO_CLIENT_ID`는 앱 설정 > 요약 정보의 "네이티브 앱 키" 또는 "REST API 키"가 아닌, 카카오 로그인 설정 시 사용되는 클라이언트 ID 개념입니다. (REST API 키를 Client ID로 사용하는 경우도 있음 - 카카오 문서 확인 필요)
--   사용자로부터 OAuth 동의를 받고 액세스 토큰을 발급받는 로직이 애플리케이션에 구현되어야 합니다. 개발 초기에는 [카카오 개발자 도구의 토큰 발급](https://developers.kakao.com/tool/token) 기능을 사용하여 테스트용 토큰을 발급받아 `KAKAO_ACCESS_TOKEN` 환경변수에 설정 후 사용할 수 있습니다.
-
-### 3. (구글 캘린더 설정 부분 삭제)
-
-# 🚀 실행 방법
-
+#### Streamlit UI 실행
 ```bash
-# Streamlit 앱 실행
 streamlit run src/ui/streamlit_app.py
-
-# 또는 Docker 환경에서
-docker-compose exec travel-planner streamlit run src/ui/streamlit_app.py
-
-# 또는 app.py를 통한 실행
-python app.py
 ```
 
-## 🎯 사용 방법
-
-1. **여행 계획 요청**: "여행 계획을 세워주세요"라고 입력
-2. **정보 수집 단계**: AI가 다음 정보를 질문합니다:
-   - 📅 **언제**: 여행 날짜 (예: 12월 25일)
-   - 📍 **어디**: 여행 목적지 (예: 서울, 부산, 제주도)
-   - ⏰ **며칠**: 여행 기간 (예: 1박2일, 2박3일)
-3. **검색 단계**: 해당 지역의 관광지, 맛집, 숙소 정보 자동 검색
-4. **계획 생성**: 수집된 정보를 바탕으로 맞춤형 여행 계획 생성
-
-## 📝 API 키 발급 가이드
-
-### OpenAI API
-1. [OpenAI Platform](https://platform.openai.com/) 접속
-2. API Keys 메뉴에서 새 키 생성
-
-### Kakao API
-1. [Kakao Developers](https://developers.kakao.com/) 접속
-2. 애플리케이션 생성 후 REST API 키 확인
-
-### Naver API
-1. [Naver Developers](https://developers.naver.com/) 접속
-2. 애플리케이션 등록 후 Client ID/Secret 확인
-
-## 🧪 테스트 실행
-
+#### 직접 테스트
 ```bash
-# 단위 테스트
-pytest tests/
-
-# 커버리지 포함
-pytest --cov=src tests/
+python test_refactored_agent.py
 ```
 
-## 📚 개발 가이드
+## 🧪 테스트
 
-- **코드 스타일**: Black, isort, flake8 사용
-- **커밋 컨벤션**: Conventional Commits
-- **브랜치 전략**: Git Flow
+### 라우팅 로직 테스트
+```bash
+python test_refactored_agent.py
+# 옵션 2 선택: 라우팅 로직 테스트
+```
 
+### 대화형 테스트
+```bash
+python test_refactored_agent.py
+# 옵션 3 선택: 대화형 테스트
+```
 
-## 📄 라이선스
+## 📁 프로젝트 구조
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```
+travel-planner-agent/
+├── src/
+│   ├── agents/          # 에이전트 구현
+│   ├── core/           # 멀티 에이전트 시스템 핵심
+│   ├── tools/          # 에이전트 도구들
+│   ├── services/       # 외부 서비스 연동
+│   ├── prompts/        # 프롬프트 템플릿
+│   ├── config/         # 설정 파일
+│   └── ui/            # 사용자 인터페이스
+├── design/            # 설계 문서 및 다이어그램
+├── logs/             # 로그 파일
+└── test_refactored_agent.py  # 테스트 스크립트
+```
+
+## 🔄 워크플로우 예시
+
+1. **사용자**: "서울 2박 3일 여행 계획 세워주세요"
+2. **Supervisor**: 요청 분석 → Planner로 라우팅
+3. **Planner**: 기본 계획 생성 → "검색이 필요합니다" → Searcher로 이동
+4. **Searcher**: 서울 관광지/맛집 검색 → "검증이 필요합니다" → Verifier로 이동
+5. **Verifier**: 정보 검증 → "캘린더 등록이 필요합니다" → Calendar로 이동
+6. **Calendar**: 일정 등록 → "공유가 필요합니다" → Sharer로 이동
+7. **Sharer**: 계획 포맷팅 및 공유 → 완료
+
+## 🎯 특징
+
+- **자율적 의사결정**: 각 Agent가 독립적으로 다음 단계 결정
+- **유연한 워크플로우**: 상황에 따라 동적으로 경로 변경
+- **오류 복구**: 예외 상황 시 Supervisor로 안전한 복귀
+- **확장 가능**: 새로운 Agent 추가 용이

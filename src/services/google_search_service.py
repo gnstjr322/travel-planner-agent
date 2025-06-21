@@ -19,7 +19,7 @@ class GoogleSearchService:
         self.cx = os.getenv("GOOGLE_SEARCH_CX")
         if not self.api_key or not self.cx:
             raise ValueError("Google API 키 또는 CX ID가 .env 파일에 설정되지 않았습니다.")
-        self.service = build("customsearch", "v1", developerKey=self.api_key)
+        # 서비스 인스턴스는 매번 새로 생성하여 메모리 누수 방지
 
     def _format_result(self, item: Dict) -> Dict:
         """API 응답 항목을 일관된 형식으로 변환합니다."""
@@ -29,7 +29,7 @@ class GoogleSearchService:
             "description": item.get("snippet", ""),
         }
 
-    async def search_web(self, query: str, num_results: int = 5) -> Dict[str, Any]:
+    def search_web(self, query: str, num_results: int = 5) -> Dict[str, Any]:
         """
         Google Custom Search API를 사용하여 웹을 검색합니다.
         """
@@ -37,14 +37,22 @@ class GoogleSearchService:
             return self._empty_result(query, "검색어가 비어있습니다.")
 
         try:
+            # 새로운 서비스 인스턴스를 매번 생성하여 메모리 누수 방지
+            service = build("customsearch", "v1",
+                            developerKey=self.api_key, cache_discovery=False)
+
             res = (
-                self.service.cse()
+                service.cse()
                 .list(q=query, cx=self.cx, num=num_results)
                 .execute()
             )
+
             search_results = [
                 self._format_result(item) for item in res.get("items", [])
             ]
+
+            # 서비스 객체 정리
+            del service
 
             return {
                 "success": True,

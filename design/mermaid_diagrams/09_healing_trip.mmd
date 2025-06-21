@@ -1,0 +1,43 @@
+%% 09_healing_trip: 요즘 힐링이 필요해…
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant LocationSearchAgent
+    participant PlannerAgent
+    participant VerifierAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "요즘 힐링이 필요해…"
+    Supervisor-->>User: "힘든 시간을 보내고 계시는군요. 어떤 힐링을 원하세요?"
+    Supervisor-->>User: "🌿 자연 속 휴식 / 🛁 온천/스파 / 🏛️ 조용한 문화여행"
+    
+    User->>Supervisor: "자연 속에서 쉬고 싶어요"
+    
+    Supervisor->>LocationSearchAgent: "자연 휴양 및 힐링 명소 검색"
+    LocationSearchAgent-->>Supervisor: "자연휴양림, 국립공원, 산촌마을, 해안가 펜션 등"
+    
+    par 힐링 여행 정보 수집
+        LocationSearchAgent->>VerifierAgent: "계절별 추천 시기 확인"
+    and
+        Supervisor->>PlannerAgent: "힐링 중심 느긋한 일정 구성"
+    end
+    
+    VerifierAgent-->>LocationSearchAgent: "현재 계절 최적 힐링 스팟 정보"
+    LocationSearchAgent-->>Supervisor: "강원도 자연휴양림, 경주 불국사 인근 한옥스테이"
+    
+    PlannerAgent-->>Supervisor: "여유로운 2박3일 힐링 일정"
+    
+    Supervisor-->>User: "추천 힐링 여행지"
+    Supervisor-->>User: "🏔️ 강원도 휴양림: 숲속 산책+명상 / 🏛️ 경주 한옥: 역사+전통차 체험"
+    
+    User->>Supervisor: "강원도로 가고 싶어요"
+    
+    Supervisor->>PlannerAgent: "강원도 자연휴양림 힐링 일정 완성"
+    PlannerAgent-->>Supervisor: "느긋한 일정 + 스트레스 해소 액티비티 포함"
+    
+    Supervisor->>SharingAgent: "힐링 여행 계획 및 준비물 정보 공유"
+    SharingAgent-->>User: "마음의 휴식을 위한 힐링 여행 계획 완료"
+    
+    Note over Supervisor: 감정 상태 공감 및 맞춤 응답
+    Note over LocationSearchAgent,VerifierAgent: 계절/날씨 고려한 추천
+    Note over PlannerAgent: 빡빡하지 않은 여유로운 일정

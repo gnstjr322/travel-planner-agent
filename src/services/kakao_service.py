@@ -24,7 +24,7 @@ class KakaoMapService:
         self.api_key = api_config.kakao_rest_api_key
 
     def _get_headers(self) -> Dict[str, str]:
-        """API 요청 헤더를 생성합니다."""
+        """API 요청 헤더 생성"""
         if not self.api_key:
             raise ValueError("카카오 REST API 키가 설정되지 않았습니다.")
         return {"Authorization": f"KakaoAK {self.api_key}"}
@@ -75,6 +75,7 @@ class KakaoMapService:
 
                     if response.status == 200:
                         data = await response.json()
+                        # logger.info(f"카카오맵 API 응답 (query: '{query}'):\n{data}")
                         places = []
 
                         for item in data.get('documents', []):
@@ -96,7 +97,7 @@ class KakaoMapService:
                         logger.info(f"카카오맵에서 '{query}' 검색 결과: {len(places)}개")
                         return places
                     else:
-                        logger.error(f"카카오맵 API 오류: {response.status}")
+                        logger.error(f"카카오맵 API 오류: {response.status}, 응답: {await response.text()}")
                         return []
 
         except Exception as e:

@@ -1,0 +1,37 @@
+%% 10_weekend_idea: 이번 주말 심심한데 뭐하지?
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant LocationSearchAgent
+    participant VerifierAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "이번 주말 심심한데 뭐하지?"
+    Supervisor-->>User: "주말을 알차게 보내고 싶으시군요! 어떤 활동 선호하세요?"
+    Supervisor-->>User: "🎪 이벤트/축제 / 🎨 전시/공연 / 🌳 야외활동 / 🏠 실내활동"
+    
+    User->>Supervisor: "이벤트나 축제 있으면 좋겠어요"
+    
+    Supervisor->>LocationSearchAgent: "이번 주말 지역 행사 및 축제 검색"
+    LocationSearchAgent-->>Supervisor: "여의도 벚꽃축제, DDP 디자인 전시, 한강 드론쇼 등"
+    
+    Supervisor->>VerifierAgent: "실시간 운영 상황 및 예약 필요 여부 확인"
+    VerifierAgent-->>Supervisor: "벚꽃축제 운영 중, DDP 당일 입장 가능, 드론쇼 토요일 19:00"
+    
+    Supervisor-->>User: "이번 주말 추천 이벤트"
+    Supervisor-->>User: "🌸 여의도 벚꽃축제 (무료) / 🎨 DDP 전시 (5천원) / 🚁 한강 드론쇼 (무료)"
+    
+    User->>Supervisor: "드론쇼 보러 가고 싶어요!"
+    
+    Supervisor->>LocationSearchAgent: "한강 드론쇼 최적 관람 장소 및 교통편 검색"
+    LocationSearchAgent-->>Supervisor: "반포한강공원 추천, 지하철 3호선 고속터미널역"
+    
+    Supervisor->>VerifierAgent: "주말 교통 상황 및 주차 정보 확인"
+    VerifierAgent-->>Supervisor: "대중교통 이용 권장, 주차장 혼잡 예상"
+    
+    Supervisor->>SharingAgent: "주말 드론쇼 관람 가이드 공유"
+    SharingAgent-->>User: "한강 드론쇼 관람 계획 완료 - 토요일 18:30 도착 추천"
+    
+    Note over LocationSearchAgent: 실시간 이벤트 정보 수집
+    Note over VerifierAgent: 운영 상황 실시간 확인
+    Note over Supervisor,User: 구체적 선택지 제공

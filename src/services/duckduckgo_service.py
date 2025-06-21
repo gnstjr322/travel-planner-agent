@@ -47,7 +47,7 @@ class DuckDuckGoService:
             )
             return [self._format_result(r) for r in results]
 
-    async def search_web(
+    def search_web(
         self,
         query: str,
         max_results: int = 5,
@@ -63,8 +63,7 @@ class DuckDuckGoService:
 
         try:
             # 동기 함수를 별도의 스레드에서 실행
-            search_results = await asyncio.to_thread(
-                self._search_sync,
+            search_results = self._search_sync(
                 query,
                 max_results,
                 region,

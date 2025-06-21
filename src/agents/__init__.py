@@ -1,11 +1,17 @@
 # Multi-Agent System for Travel Planning
 
-from .info_collection_agent import InfoCollectionAgent
-from .planner_agent import PlannerAgent
-from .search_agent import SearchAgent
+from .calendar_agent import create_calendar_agent
+from .planner_agent import create_planner_agent
+from .search_agent import create_search_agent
+from .share_agent import create_share_agent
+from .supervisor_agent import create_routing_agent
+from .verifier_agent import create_verifier_agent
 
 __all__ = [
-    "InfoCollectionAgent",
-    "SearchAgent",
-    "PlannerAgent"
+    "create_routing_agent",
+    "create_planner_agent",
+    "create_search_agent",
+    "create_verifier_agent",
+    "create_calendar_agent",
+    "create_share_agent",
 ]

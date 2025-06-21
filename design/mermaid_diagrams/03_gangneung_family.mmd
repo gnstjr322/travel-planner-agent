@@ -1,0 +1,37 @@
+%% 03_gangneung_family: 강릉 가족 여행으로 2박 3일 일정 짜줘
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant PlannerAgent
+    participant LocationSearchAgent
+    participant VerifierAgent
+    participant CalendarAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "강릉 가족 여행으로 2박 3일 일정 짜줘"
+    Supervisor->>PlannerAgent: "가족 단위 강릉 2박3일 일정 구성"
+    
+    par 병렬 정보 수집
+        PlannerAgent->>LocationSearchAgent: "키즈 프렌들리 강릉 명소 검색"
+    and
+        PlannerAgent->>VerifierAgent: "가족 여행 안전 정보 확인"
+    end
+    
+    LocationSearchAgent-->>PlannerAgent: "정동진, 안목해변, 오죽헌, 참소리박물관 등"
+    VerifierAgent-->>PlannerAgent: "접근성, 안전시설, 편의시설 정보"
+    
+    PlannerAgent-->>Supervisor: "가족 맞춤 일정 완성"
+    Supervisor-->>User: "일정 초안 확인 - 아이 연령대는 어떻게 되나요?"
+    
+    User->>Supervisor: "초등학생 2명이에요"
+    Supervisor->>PlannerAgent: "초등학생 맞춤 체험 활동 추가"
+    PlannerAgent-->>Supervisor: "최종 일정 완성"
+    
+    Supervisor->>CalendarAgent: "가족 일정 캘린더 등록"
+    CalendarAgent-->>Supervisor: "등록 완료"
+    
+    Supervisor->>SharingAgent: "가족 여행 계획서 공유"
+    SharingAgent-->>User: "강릉 가족 여행 계획 완료"
+    
+    Note over LocationSearchAgent,VerifierAgent: 병렬 처리로 효율성 증대
+    Note over Supervisor,User: 사용자 맞춤화를 위한 중간 확인

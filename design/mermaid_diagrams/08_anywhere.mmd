@@ -1,0 +1,37 @@
+%% 08_anywhere: 어디든 가고 싶다…
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant LocationSearchAgent
+    participant PlannerAgent
+    participant VerifierAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "어디든 가고 싶다…"
+    Supervisor-->>User: "여행 가고 싶은 마음 이해해요! 몇 가지 질문드릴게요"
+    Supervisor-->>User: "1) 국내/해외 2) 며칠 정도 3) 어떤 분위기? (힐링/액티비티/문화)"
+    
+    User->>Supervisor: "국내로 2박3일, 힐링하고 싶어요"
+    Supervisor->>LocationSearchAgent: "사용자 위치 기반 힐링 여행지 추천"
+    LocationSearchAgent-->>Supervisor: "제주도, 강릉, 여수 3곳 후보"
+    
+    Supervisor-->>User: "추천 여행지 3곳입니다"
+    Supervisor-->>User: "🏝️ 제주도: 자연+온천 / 🌊 강릉: 바다+카페 / 🌅 여수: 야경+해산물"
+    
+    User->>Supervisor: "제주도로 정할게요!"
+    
+    Supervisor->>PlannerAgent: "제주도 2박3일 힐링 여행 일정 구성"
+    PlannerAgent->>LocationSearchAgent: "제주도 힐링 스팟 상세 검색"
+    LocationSearchAgent-->>PlannerAgent: "한라산, 성산일출봉, 카멜리아힐, 스파 등"
+    
+    PlannerAgent->>VerifierAgent: "여행 시기 및 접근성 확인"
+    VerifierAgent-->>PlannerAgent: "항공편 예약 가능, 날씨 양호"
+    
+    PlannerAgent-->>Supervisor: "제주도 힐링 여행 완성"
+    
+    Supervisor->>SharingAgent: "제주도 힐링 여행 계획 공유"
+    SharingAgent-->>User: "제주도에서 힐링하는 여행 계획 완료"
+    
+    Note over Supervisor,User: 모호한 요청의 구체화 과정
+    Note over LocationSearchAgent: 사용자 맞춤 추천 알고리즘
+    Note over Supervisor,User: 선택권 제공으로 만족도 증대

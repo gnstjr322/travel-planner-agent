@@ -8,6 +8,7 @@ from src.services.duckduckgo_service import DuckDuckGoService
 from src.services.google_search_service import GoogleSearchService
 from src.services.kakao_calendar_service import KakaoCalendarService
 from src.services.kakao_service import KakaoMapService
+from src.services.tavily_service import TavilyService
 
 # .env 파일을 로드하고, 기존 환경 변수를 덮어쓰도록 설정
 load_dotenv(override=True)
@@ -65,10 +66,23 @@ async def test_duckduckgo_search_api():
     try:
         service = DuckDuckGoService()
         # 'safesearch' 인자를 포함하여 호출
-        results = await service.search_web(
-            query="오늘의 주요 뉴스", max_results=3, safesearch="moderate"
+        results = service.search_web(
+            query="오늘의 주요 뉴스", max_results=5, safesearch="moderate"
         )
         print_result(results)
+    except Exception as e:
+        print(f"❌ 오류 발생: {e}")
+
+
+async def test_tavily_search_api():
+    """Tavily 웹 검색 API를 테스트합니다."""
+    print_header("웹 검색 (Tavily) API 테스트")
+    try:
+        service = TavilyService()
+        results = service.search_web("한국 여행 필수 준비물", max_results=3)
+        print_result(results)
+    except ValueError as e:
+        print(f"❌ {e} Tavily 검색 테스트를 건너뜁니다.")
     except Exception as e:
         print(f"❌ 오류 발생: {e}")
 
@@ -156,12 +170,85 @@ async def test_kakao_calendar_api():
         print(f"❌ 오류 발생: {e}")
 
 
+async def test_notion_api():
+    """Notion API CRUD 테스트"""
+    print_header("Notion API 테스트")
+    try:
+        from src.services.notion_service import notion_service
+
+        # 1. 데이터베이스 정보 조회
+        print("--- 1. 데이터베이스 정보 조회 ---")
+        database_info = notion_service.get_database_info()
+        print_result(database_info)
+
+        # 2. 데이터베이스 쿼리 (최근 5개 페이지)
+        print("\n--- 2. 데이터베이스 페이지 조회 ---")
+        query_results = notion_service.query_database(max_results=5)
+        print_result({
+            "총 페이지 수": len(query_results),
+            "페이지 제목들": [result["title"] for result in query_results]
+        })
+
+        # 3. 새 페이지 생성
+        print("\n--- 3. 새 페이지 생성 ---")
+        new_page_id = notion_service.create_page(
+            properties={
+                "이름": {
+                    "title": [
+                        {
+                            "text": {
+                                "content": f"API 테스트 페이지 ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
+                            }
+                        }
+                    ]
+                }
+            },
+            content="이 페이지는 API 테스트 스크립트에 의해 생성되었습니다."
+        )
+        print_result({"생성된 페이지 ID": new_page_id})
+
+        # 4. 페이지 업데이트
+        if new_page_id:
+            print("\n--- 4. 페이지 업데이트 ---")
+            update_success = notion_service.update_page(
+                page_id=new_page_id,
+                properties={
+                    "이름": {
+                        "title": [
+                            {
+                                "text": {
+                                    "content": f"수정된 API 테스트 페이지 ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
+                                }
+                            }
+                        ]
+                    }
+                }
+            )
+            print_result({"페이지 업데이트 성공 여부": update_success})
+
+        # 5. 페이지 삭제 (아카이브)
+        if new_page_id:
+            print("\n--- 5. 페이지 삭제(아카이브) ---")
+            delete_success = notion_service.delete_page(page_id=new_page_id)
+            print_result({"페이지 삭제 성공 여부": delete_success})
+
+        # 6. 웹 검색 기능 테스트
+        print("\n--- 6. 페이지 검색 ---")
+        search_results = notion_service.search_web("여행")
+        print_result(search_results)
+
+    except Exception as e:
+        print(f"❌ Notion API 테스트 중 오류 발생: {e}")
+
+
 async def main():
     """모든 API 테스트를 실행합니다."""
-    await test_kakao_map_api()
-    await test_google_search_api()
-    await test_duckduckgo_search_api()
-    await test_kakao_calendar_api()
+    # await test_kakao_map_api()
+    # await test_google_search_api()
+    # await test_duckduckgo_search_api()
+    # await test_tavily_search_api()
+    # await test_kakao_calendar_api()
+    await test_notion_api()
     print("\n✅ 모든 테스트가 완료되었습니다.")
 
 

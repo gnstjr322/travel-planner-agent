@@ -1,0 +1,30 @@
+%% 01_seoul_trip: 3박 4일 서울 여행 계획 짜줘
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant PlannerAgent
+    participant LocationSearchAgent
+    participant VerifierAgent
+    participant CalendarAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "3박 4일 서울 여행 계획 짜줘"
+    Supervisor->>PlannerAgent: "서울 3박4일 기본 일정 구성"
+    PlannerAgent->>LocationSearchAgent: "서울 주요 명소 및 맛집 검색"
+    LocationSearchAgent-->>PlannerAgent: "경복궁, 명동, 홍대, 강남 등 추천"
+    
+    PlannerAgent->>VerifierAgent: "추천 장소들 운영시간/휴무일 확인"
+    VerifierAgent-->>PlannerAgent: "운영 정보 검증 완료"
+    
+    PlannerAgent-->>Supervisor: "상세 일정 완성"
+    
+    alt 사용자가 일정 등록 원함
+        Supervisor->>CalendarAgent: "일정 캘린더 등록"
+        CalendarAgent-->>Supervisor: "등록 완료"
+    end
+    
+    Supervisor->>SharingAgent: "여행 계획서 생성 및 공유"
+    SharingAgent-->>User: "서울 3박4일 여행 계획 완료"
+    
+    Note over PlannerAgent,VerifierAgent: 에이전트 간 직접 협업
+    Note over Supervisor: 필요시에만 CalendarAgent 호출

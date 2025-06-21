@@ -1,0 +1,28 @@
+%% 06_share_only: 친구한테 일정 짜서 링크로만 공유해줘
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant PlannerAgent
+    participant VerifierAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "친구한테 일정 짜서 링크로만 공유해줘"
+    Supervisor-->>User: "어떤 여행 일정을 만들어드릴까요? (지역, 기간 등)"
+    User->>Supervisor: "제주도 2박3일로 해주세요"
+    
+    Supervisor->>PlannerAgent: "제주도 2박3일 기본 일정 구성"
+    PlannerAgent-->>Supervisor: "제주도 일반적인 관광 코스 완성"
+    
+    Supervisor->>VerifierAgent: "개인정보 포함 여부 및 공유 적합성 검토"
+    VerifierAgent-->>Supervisor: "공유 가능한 일반 정보로 구성됨"
+    
+    Supervisor->>SharingAgent: "익명 공유 링크 생성"
+    SharingAgent-->>Supervisor: "공유 링크 생성 완료"
+    
+    Supervisor-->>User: "제주도 여행 계획 링크가 준비되었습니다"
+    SharingAgent-->>User: "https://travel-plan.com/jeju-2d3n-abc123"
+    
+    Note over PlannerAgent: 간단한 템플릿 기반 일정
+    Note over VerifierAgent: 개인정보 보호 확인
+    Note over SharingAgent: 익명 링크 생성이 핵심
+    Note over User: CalendarAgent 불필요 (개인 일정 등록 없음)

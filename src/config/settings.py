@@ -1,38 +1,63 @@
 """
-Application configuration settings.
+Settings and configuration management for the Travel Planner Agent.
 """
 import os
+from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
 
 
-class Settings:
+class Settings(BaseSettings):
     """어플리케이션 세팅"""
 
-    def __init__(self):
-        # OpenAI API
-        self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
-        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4o")
-        self.openai_temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.7"))
-        self.max_tokens = int(os.getenv("MAX_TOKENS", "1000"))
+    # OpenAI API
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
+    openai_temperature: float = 0.7
+    max_tokens: int = 1000
 
-        # External API Keys
-        self.kakao_rest_api_key = os.getenv("KAKAO_REST_API_KEY")
-        self.kakao_refresh_token = os.getenv("KAKAO_REFRESH_TOKEN")
+    # Kakao API
+    kakao_rest_api_key: str = ""
+    kakao_auth_code: str = ""
+    kakao_access_token: str = ""
+    kakao_refresh_token: str = ""
 
-        self.google_search_api_key = os.getenv("GOOGLE_SEARCH_API_KEY")
-        self.google_search_cx = os.getenv("GOOGLE_SEARCH_CX")
+    # Google Search API
+    google_search_api_key: str = ""
+    google_search_cx: str = ""
 
-        # Application Settings
-        self.debug = os.getenv("DEBUG", "False").lower() == "true"
-        self.log_level = os.getenv("LOG_LEVEL", "INFO")
+    # Tavily API
+    tavily_api_key: str = ""
 
-        # Streamlit Settings
-        self.page_title = "🌍 여행 플래너 AI"
-        self.page_icon = "🌍"
+    # Notion API
+    notion_api_key: str = ""
+    notion_database_id: str = ""
+
+    # Application Configuration
+    app_name: str = "Travel Planner Multi-Agent"
+    app_version: str = "1.0.0"
+    debug: bool = True
+    log_level: str = "INFO"
+
+    # Multi-Agent System Settings
+    default_model: str = "gpt-4o-mini"
+    agent_temperature: float = 0.0
+    max_search_results: int = 5
+    search_timeout: int = 10
+
+    # Streamlit UI Configuration
+    page_title: str = "🌍 AI 여행 플래너"
+    page_icon: str = "🌍"
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = False
 
 
 # Global settings instance

@@ -1,0 +1,41 @@
+%% 12_solo_quiet: 혼자 조용한 데 다녀오고 싶어
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant LocationSearchAgent
+    participant VerifierAgent
+    participant PlannerAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "혼자 조용한 데 다녀오고 싶어"
+    Supervisor-->>User: "혼자만의 시간을 보내고 싶으시군요. 어떤 분위기를 원하세요?"
+    Supervisor-->>User: "📚 조용한 서점/카페 / 🏛️ 한적한 문화공간 / 🌲 한적한 자연"
+    
+    User->>Supervisor: "한적한 자연이 좋을 것 같아요"
+    
+    Supervisor->>LocationSearchAgent: "1인 여행 안전한 한적한 자연 명소 검색"
+    LocationSearchAgent-->>Supervisor: "소도시 한옥스테이, 조용한 해안가, 산촌 펜션 등"
+    
+    Supervisor->>VerifierAgent: "1인 여행 안전성 및 접근성 확인"
+    VerifierAgent-->>Supervisor: "대중교통 접근 가능, 여성 1인 여행 안전 지역 확인"
+    
+    Supervisor-->>User: "1인 여행 추천 조용한 자연 명소"
+    Supervisor-->>User: "🏘️ 안동 하회마을 / 🌊 강릉 소금강 / 🏔️ 정선 아리랑마을"
+    
+    User->>Supervisor: "안동 하회마을로 가고 싶어요"
+    
+    Supervisor->>PlannerAgent: "안동 하회마을 1인 여행 일정 구성"
+    PlannerAgent->>LocationSearchAgent: "하회마을 주변 조용한 카페, 산책로 검색"
+    LocationSearchAgent-->>PlannerAgent: "하회마을 한옥스테이, 낙동강 둘레길, 전통찻집"
+    
+    PlannerAgent->>VerifierAgent: "1인 숙박 시설 및 야간 안전 확인"
+    VerifierAgent-->>PlannerAgent: "한옥스테이 1인실 예약 가능, 마을 내 안전 조명 완비"
+    
+    PlannerAgent-->>Supervisor: "안동 하회마을 힐링 1인 여행 완성"
+    
+    Supervisor->>SharingAgent: "1인 여행 안전 가이드 및 일정 공유"
+    SharingAgent-->>User: "안전하고 조용한 안동 하회마을 여행 계획 완료"
+    
+    Note over LocationSearchAgent: 1인 여행 안전 지역 필터링
+    Note over VerifierAgent: 안전성이 최우선 고려사항
+    Note over PlannerAgent: 혼자서도 편안한 일정 구성

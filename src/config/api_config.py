@@ -33,6 +33,22 @@ class APIConfig:
                 "KAKAO_REST_API_KEY가 없습니다. 지도/로컬 API 사용에 문제 발생 가능"
             )
 
+        self.tavily_api_key = os.getenv(
+            "TAVILY_API_KEY")  # 웹 검색 API용
+
+        if not self.tavily_api_key:
+            logger.warning(
+                "TAVILY_API_KEY가 없습니다. 웹 검색 API 사용에 문제 발생 가능"
+            )
+
+        self.notion_api_key = os.getenv(
+            "NOTION_API_KEY")  # 노션 API용
+
+        if not self.notion_api_key:
+            logger.warning(
+                "NOTION_API_KEY가 없습니다. 노션 API 사용에 문제 발생 가능"
+            )
+
 
 # 전역 API 설정 인스턴스
 api_config = APIConfig()

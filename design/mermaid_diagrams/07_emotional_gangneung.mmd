@@ -1,0 +1,37 @@
+%% 07_emotional_gangneung: 아 강릉 가고 싶다 여행 계획 짜줘
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant PlannerAgent
+    participant LocationSearchAgent
+    participant VerifierAgent
+    participant CalendarAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "아 강릉 가고 싶다 여행 계획 짜줘"
+    Supervisor-->>User: "강릉 여행 좋은 선택이에요! 언제, 며칠 정도 계획하고 계신가요?"
+    User->>Supervisor: "이번 주말에 1박2일로 가고 싶어요"
+    
+    Supervisor->>PlannerAgent: "강릉 1박2일 감성 여행 일정 구성"
+    PlannerAgent->>LocationSearchAgent: "강릉 대표 명소 및 감성 카페 검색"
+    LocationSearchAgent-->>PlannerAgent: "정동진 일출, 안목해변 카페거리, 경포대 등"
+    
+    PlannerAgent->>VerifierAgent: "주말 운영 상황 및 혼잡도 확인"
+    VerifierAgent-->>PlannerAgent: "주말 운영 정상, 일출 시간 06:45"
+    
+    PlannerAgent-->>Supervisor: "강릉 감성 여행 일정 완성"
+    Supervisor-->>User: "일출 보기 vs 여유로운 오후 출발 중 어떤 스타일 선호하세요?"
+    
+    User->>Supervisor: "일출 보고 싶어요!"
+    Supervisor->>PlannerAgent: "일출 중심 일정으로 재구성"
+    PlannerAgent-->>Supervisor: "새벽 출발 → 정동진 일출 → 안목해변 조식 코스"
+    
+    Supervisor->>CalendarAgent: "강릉 여행 일정 등록"
+    CalendarAgent-->>Supervisor: "일정 등록 및 알림 설정 완료"
+    
+    Supervisor->>SharingAgent: "강릉 감성 여행 계획서 공유"
+    SharingAgent-->>User: "강릉 힐링 여행 계획 완료"
+    
+    Note over Supervisor: 감정 표현 인식 및 공감
+    Note over Supervisor,User: 구체적 정보 수집을 위한 질문
+    Note over PlannerAgent: 감성 여행에 특화된 일정 구성

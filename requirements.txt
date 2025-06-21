@@ -1,8 +1,10 @@
 # Core LLM and Agent Framework
 langchain
-langgraph
-langchain-openai
-langchain-community
+langgraph>=0.2.0
+langgraph-supervisor
+langchain-openai>=0.2.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
 
 # Web UI Framework
 streamlit
@@ -16,7 +18,7 @@ aiohttp==3.9.1
 # Data Processing
 pandas==2.1.4
 numpy==1.26.2
-pydantic==2.5.2
+pydantic>=2.0.0
 pydantic-settings==2.1.0
 
 # Environment and Configuration
@@ -45,18 +47,19 @@ pytz==2023.3
 uuid==1.30
 
 # Multi-agent framework
-typing-extensions==4.9.0
+typing-extensions>=4.0.0
 
 # Google Calendar API (to be removed)
 # google-auth==2.25.2
-
-# Kakao SDK (if official SDK is used, add here, e.g., kakao-sdk)
-
 # For Google Calendar API (commented out)
 # google-auth-httplib2
 # google-auth-oauthlib
 # oauth2client
 
 # Web Search
+tavily-python
 duckduckgo-search 
 google-api-python-client
+
+#notion
+notion-client

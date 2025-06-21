@@ -322,6 +322,20 @@ class KakaoCalendarService:
 
         title = f"🧳 {destination} 여행"
 
+        # 시작 시간과 종료 시간이 같은 경우 종료 시간을 자동 조정
+        if start_date == end_date:
+            # 하루 종일 일정으로 처리: 시작은 오전 9시, 종료는 오후 6시
+            start_date = start_date.replace(
+                hour=9, minute=0, second=0, microsecond=0)
+            end_date = end_date.replace(
+                hour=18, minute=0, second=0, microsecond=0)
+        elif start_date.time() == end_date.time() and start_date.time().hour == 0:
+            # 둘 다 자정(00:00)인 경우
+            start_date = start_date.replace(
+                hour=9, minute=0, second=0, microsecond=0)
+            end_date = end_date.replace(
+                hour=18, minute=0, second=0, microsecond=0)
+
         description_parts = [
             f"📍 목적지: {destination}",
             f"📅 여행 기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}",
@@ -431,6 +445,138 @@ class KakaoCalendarService:
         except Exception as e:
             logger.error(f"일정 삭제 중 오류 발생: {str(e)}")
             return False
+
+    def search_events(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+        """
+        사용자가 제공한 검색어로 일정을 찾습니다.
+
+        Args:
+            query: 검색어 (목적지, 제목 등)
+            max_results: 최대 검색 결과 수
+
+        Returns:
+            검색된 일정 목록
+        """
+        try:
+            # 카카오 API 제한사항에 맞춰 현재부터 30일 후까지만 조회
+            now_utc = datetime.utcnow()
+            time_min = now_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+            time_max = (now_utc + timedelta(days=30)
+                        ).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+            response = self._request_with_retry(
+                "get",
+                f"{self.config.api_base_url}/v2/api/calendar/events",
+                params={
+                    "calendar_id": "primary",
+                    "from": time_min,
+                    "to": time_max,
+                    "limit": max_results * 2,  # 필터링 후 충분한 결과를 위해 2배로 설정
+                }
+            )
+            events_data = response.json()
+
+            # 검색어로 필터링
+            matched_events = []
+            for event in events_data.get("events", []):
+                # 제목, 설명, 위치 등에서 검색어 포함 여부 확인
+                if (query.lower() in event.get('title', '').lower() or
+                    query.lower() in event.get('description', '').lower() or
+                        query.lower() in str(event.get('location', '')).lower()):
+
+                    formatted_event = {
+                        "id": event.get('id', ''),
+                        "title": event.get('title', '제목 없음'),
+                        "start_time": event.get('time', {}).get('start_at', ''),
+                        "end_time": event.get('time', {}).get('end_at', ''),
+                        "description": event.get('description', ''),
+                    }
+                    matched_events.append(formatted_event)
+
+                    # 최대 결과 수 제한
+                    if len(matched_events) >= max_results:
+                        break
+
+            logger.info(f"'{query}' 검색 결과: {len(matched_events)}개 일정 발견")
+            return matched_events
+
+        except Exception as e:
+            logger.error(f"일정 검색 중 오류 발생: {str(e)}")
+            return []
+
+    def search_events_extended(self, query: str, max_results: int = 10, include_past: bool = False) -> List[Dict[str, Any]]:
+        """
+        확장된 일정 검색 - 과거 일정도 포함 가능
+
+        Args:
+            query: 검색어
+            max_results: 최대 검색 결과 수
+            include_past: 과거 일정 포함 여부
+
+        Returns:
+            검색된 일정 목록
+        """
+        all_matched_events = []
+
+        try:
+            now_utc = datetime.utcnow()
+
+            # 미래 일정 검색 (현재 ~ 30일 후)
+            future_events = self.search_events(query, max_results)
+            all_matched_events.extend(future_events)
+
+            # 과거 일정 검색 (30일 전 ~ 현재)
+            if include_past and len(all_matched_events) < max_results:
+                try:
+                    time_min = (now_utc - timedelta(days=30)
+                                ).strftime('%Y-%m-%dT%H:%M:%SZ')
+                    time_max = now_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+                    response = self._request_with_retry(
+                        "get",
+                        f"{self.config.api_base_url}/v2/api/calendar/events",
+                        params={
+                            "calendar_id": "primary",
+                            "from": time_min,
+                            "to": time_max,
+                            "limit": max_results * 2,
+                        }
+                    )
+                    events_data = response.json()
+
+                    for event in events_data.get("events", []):
+                        if (query.lower() in event.get('title', '').lower() or
+                            query.lower() in event.get('description', '').lower() or
+                                query.lower() in str(event.get('location', '')).lower()):
+
+                            # 중복 제거 (ID 기준)
+                            event_id = event.get('id', '')
+                            if not any(e.get('id') == event_id for e in all_matched_events):
+                                formatted_event = {
+                                    "id": event_id,
+                                    "title": event.get('title', '제목 없음'),
+                                    "start_time": event.get('time', {}).get('start_at', ''),
+                                    "end_time": event.get('time', {}).get('end_at', ''),
+                                    "description": event.get('description', ''),
+                                }
+                                all_matched_events.append(formatted_event)
+
+                                if len(all_matched_events) >= max_results:
+                                    break
+                except Exception as past_error:
+                    logger.warning(f"과거 일정 검색 중 오류 (무시하고 계속): {past_error}")
+
+            # 시간순 정렬 (최신순)
+            all_matched_events.sort(key=lambda x: x.get(
+                'start_time', ''), reverse=True)
+
+            logger.info(
+                f"'{query}' 확장 검색 결과: {len(all_matched_events)}개 일정 발견")
+            return all_matched_events[:max_results]
+
+        except Exception as e:
+            logger.error(f"확장 일정 검색 중 오류 발생: {str(e)}")
+            return []
 
 
 # 전역 Kakao Calendar 서비스 인스턴스 (나중에 설정 클래스에서 관리하도록 변경 가능)

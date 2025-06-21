@@ -1,0 +1,43 @@
+%% 13_short_seoul: 서울로 가고 싶은데 1박 2일밖에 시간 없어
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant PlannerAgent
+    participant LocationSearchAgent
+    participant VerifierAgent
+    participant CalendarAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "서울로 가고 싶은데 1박 2일밖에 시간 없어"
+    Supervisor-->>User: "짧은 시간이지만 알차게 계획해드릴게요! 어떤 테마 원하세요?"
+    Supervisor-->>User: "🏛️ 핵심 관광지 / 🛍️ 쇼핑+맛집 / 🎭 문화+예술 / 📸 SNS 핫플"
+    
+    User->>Supervisor: "핵심 관광지 위주로 해주세요"
+    
+    Supervisor->>PlannerAgent: "서울 1박2일 핵심 관광지 효율 일정 구성"
+    
+    par 시간 효율성 중심 정보 수집
+        PlannerAgent->>LocationSearchAgent: "서울 대표 관광지 접근성 순 검색"
+    and
+        PlannerAgent->>VerifierAgent: "운영시간 및 이동시간 최적화 확인"
+    end
+    
+    LocationSearchAgent-->>PlannerAgent: "경복궁→북촌→명동→남산타워 동선"
+    VerifierAgent-->>PlannerAgent: "대중교통 최적 루트 및 소요시간 계산"
+    
+    PlannerAgent-->>Supervisor: "압축된 서울 1박2일 일정 완성"
+    
+    Supervisor-->>User: "1박2일 서울 핵심 코스 제안"
+    Supervisor-->>User: "1일차: 경복궁→북촌→인사동 / 2일차: 명동→남산→동대문"
+    
+    User->>Supervisor: "완벽해요! 일정 저장해주세요"
+    
+    Supervisor->>CalendarAgent: "서울 1박2일 여행 일정 등록"
+    CalendarAgent-->>Supervisor: "일정 등록 및 교통편 알림 설정 완료"
+    
+    Supervisor->>SharingAgent: "서울 단기 여행 가이드북 공유"
+    SharingAgent-->>User: "효율적인 서울 1박2일 여행 계획 완료"
+    
+    Note over PlannerAgent: 시간 효율성이 최우선
+    Note over LocationSearchAgent,VerifierAgent: 이동시간 최소화 중점
+    Note over CalendarAgent: 타이트한 일정 관리 필수

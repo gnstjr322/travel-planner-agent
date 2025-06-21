@@ -1,0 +1,38 @@
+%% 04_modify_busan: 지난달 부산 여행 일정 수정하고 싶어
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant CalendarAgent
+    participant PlannerAgent
+    participant VerifierAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "지난달 부산 여행 일정 수정하고 싶어"
+    Supervisor->>CalendarAgent: "사용자 부산 여행 일정 조회"
+    
+    alt 기존 일정 존재
+        CalendarAgent-->>Supervisor: "부산 여행 일정 데이터 (2024.11.15-17)"
+        Supervisor-->>User: "11월 부산 일정을 찾았어요. 어느 부분을 수정하고 싶나요?"
+        
+        User->>Supervisor: "2일차 일정을 바꾸고 싶어요"
+        Supervisor->>PlannerAgent: "부산 2일차 일정 수정 요청"
+        PlannerAgent->>CalendarAgent: "기존 2일차 상세 정보 요청"
+        CalendarAgent-->>PlannerAgent: "해운대 → 광안리 → 센텀시티"
+        
+        PlannerAgent-->>Supervisor: "새로운 2일차 일정 제안"
+        Supervisor->>VerifierAgent: "수정 일정 충돌 및 운영시간 확인"
+        VerifierAgent-->>Supervisor: "충돌 없음, 모든 장소 운영 중"
+        
+        Supervisor->>CalendarAgent: "일정 업데이트 실행"
+        CalendarAgent-->>Supervisor: "일정 수정 완료"
+        
+        Supervisor->>SharingAgent: "수정된 부산 일정 공유"
+        SharingAgent-->>User: "부산 여행 일정 수정 완료"
+        
+    else 기존 일정 없음
+        CalendarAgent-->>Supervisor: "부산 여행 일정을 찾을 수 없음"
+        Supervisor-->>User: "기존 일정이 없습니다. 새로 만들어드릴까요?"
+    end
+    
+    Note over CalendarAgent: 일정 수정의 핵심 에이전트
+    Note over Supervisor,User: 사용자 확인 과정 필수

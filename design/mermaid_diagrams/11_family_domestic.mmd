@@ -1,0 +1,47 @@
+%% 11_family_domestic: 가족이랑 가기 좋은 국내 여행지 추천해줘
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant LocationSearchAgent
+    participant PlannerAgent
+    participant VerifierAgent
+    participant SharingAgent
+    
+    User->>Supervisor: "가족이랑 가기 좋은 국내 여행지 추천해줘"
+    Supervisor-->>User: "가족 여행 계획 도와드릴게요! 가족 구성이 어떻게 되나요?"
+    User->>Supervisor: "부모님, 저희 부부, 아이 둘 (7세, 10세)이에요"
+    
+    Supervisor-->>User: "3세대 가족 여행이네요! 며칠 정도 계획하고 계신가요?"
+    User->>Supervisor: "2박3일 정도로 생각하고 있어요"
+    
+    Supervisor->>LocationSearchAgent: "3세대 가족 친화 국내 여행지 검색"
+    LocationSearchAgent-->>Supervisor: "제주도, 경주, 전주, 부산 등 가족 여행 명소"
+    
+    par 가족 여행 정보 수집
+        LocationSearchAgent->>VerifierAgent: "연령대별 적합성 및 접근성 확인"
+    and
+        Supervisor->>PlannerAgent: "3세대 맞춤 일정 구성"
+    end
+    
+    VerifierAgent-->>LocationSearchAgent: "유모차 접근, 휠체어 이용 가능 시설 확인"
+    LocationSearchAgent-->>Supervisor: "제주도 에코랜드, 경주 불국사, 전주 한옥마을"
+    
+    PlannerAgent-->>Supervisor: "여유로운 가족 여행 일정 (휴식 시간 충분히 포함)"
+    
+    Supervisor-->>User: "3세대 가족 추천 여행지"
+    Supervisor-->>User: "🏝️ 제주도: 자연+체험 / 🏛️ 경주: 역사+문화 / 🏘️ 전주: 전통+맛집"
+    
+    User->>Supervisor: "전주로 정할게요!"
+    
+    Supervisor->>PlannerAgent: "전주 3세대 가족 여행 상세 일정 구성"
+    PlannerAgent->>LocationSearchAgent: "전주 가족 체험 프로그램 및 식당 검색"
+    LocationSearchAgent-->>PlannerAgent: "한옥마을, 전통문화체험, 가족 맛집 정보"
+    
+    PlannerAgent-->>Supervisor: "전주 가족 여행 완성 (할머니 할아버지 배려 포함)"
+    
+    Supervisor->>SharingAgent: "3세대 가족 전주 여행 가이드 공유"
+    SharingAgent-->>User: "온 가족이 즐거운 전주 여행 계획 완료"
+    
+    Note over Supervisor,User: 가족 구성 파악이 핵심
+    Note over VerifierAgent: 연령대별 접근성 중요
+    Note over PlannerAgent: 3세대 모두 고려한 일정
