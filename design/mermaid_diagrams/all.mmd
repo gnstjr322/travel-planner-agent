@@ -1,0 +1,18 @@
+flowchart TD
+    User["사용자"] --> UI["UI (Streamlit 앱)"]
+    UI --> Supervisor["Supervisor Agent"]
+    
+    subgraph "Multi-Agent System (중앙 협업 구조)"
+        Supervisor --> Planner["Planner Agent"]
+        Supervisor --> Location["LocationSearch Agent"]
+        Supervisor --> Calendar["Calendar Agent"]
+        Supervisor --> Share["Share Agent"]
+        Supervisor -.-> Verifier["Verifier Agent (미구현)"]
+    end
+
+    Planner -->|웹 검색| TavilyAPI["Tavily/Web 검색 API"]
+    Location -->|장소 정보| KakaoMaps["카카오 지도 API"]
+    Calendar -->|일정 추가| KakaoCal["카카오 캘린더 API"]
+    Share -->|페이지 생성| NotionAPI["노션 API"]
+    
+    Supervisor -->|최종 응답| UI
