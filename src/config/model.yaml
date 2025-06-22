@@ -1,0 +1,30 @@
+# 모델의 종류, 버전, 파라미터(온도 등)를 중앙에서 관리하여 쉽게 교체하고, 에이전트별로 다른 모델을 할당할 수 있도록 설계(미적용)
+# src/config/models.yml
+# 사용 가능한 모델 목록 정의
+models:
+  - alias: "fast_cheap" # 모델 별칭
+    provider: "openai"
+    name: "gpt-4o-mini"
+    parameters:
+      temperature: 0.1
+
+  - alias: "smart"
+    provider: "openai"
+    name: "gpt-4o"
+    parameters:
+      temperature: 0.3
+
+  - alias: "google_fast"
+    provider: "google" # 향후 다른 제공사 모델 추가 대비
+    name: "gemini-1.5-flash"
+    parameters:
+      temperature: 0.1
+
+# 각 에이전트가 어떤 모델을 사용할지 매핑
+agent_model_mapping:
+  default: "fast_cheap" # 기본 모델
+  supervisor: "smart" # Supervisor는 더 강력한 모델 사용
+  planner_agent: "fast_cheap"
+  location_search_agent: "fast_cheap"
+  calendar_agent: "fast_cheap"
+  share_agent: "fast_cheap"

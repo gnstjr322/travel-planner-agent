@@ -5,6 +5,54 @@
 - 핵심 구조: 중앙 `Supervisor` 에이전트가 사용자 요청을 해석하고, 각 기능에 특화된 `Worker` 에이전트들에게 작업을 분배하는 'Agent State' 기반의 라우팅 방식을 채택합니다.
 - 상호작용: 에이전트는 필요한 경우 다른 에이전트나 도구를 호출하여 협업합니다.
 
+## 1.1. 에이전트 구조 트리
+
+Travel Multi-Agent System
+│
+├── Supervisor Agent (중앙 관리자)
+│   ├── transfer_to_planner_agent
+│   ├── transfer_to_location_search_agent
+│   ├── transfer_to_calendar_agent
+│   └── transfer_to_share_agent
+│
+├── PlannerAgent (여행 계획)
+│   ├── web_search_tool
+│   ├── create_travel_plan_tool
+│   ├── modify_travel_plan_tool
+│   └── validate_travel_plan_tool
+│
+├── LocationSearchAgent (장소 검색)
+│   ├── location_search_tool
+│   └── nearby_search_tool
+│
+├── VerifierAgent (정보 검증) - 미구현
+│   └── [구현 대기 중]
+│
+├── CalendarAgent (캘린더 연동)
+│   ├── add_travel_plan_to_calendar
+│   ├── check_calendar_availability
+│   ├── update_travel_plan_tool
+│   ├── delete_travel_plan_tool
+│   └── search_travel_plan_tool
+│
+└── ShareAgent (공유)
+    └── create_notion_page_tool
+
+
+## 1.2. 워크플로우 구조
+
+사용자 입력
+    ↓
+Supervisor Agent
+    ↓ (라우팅)
+    ├── PlannerAgent ──→ Supervisor
+    ├── LocationSearchAgent ──→ Supervisor  
+    ├── CalendarAgent ──→ Supervisor
+    └── ShareAgent ──→ Supervisor
+    ↓
+최종 응답 또는 END
+
+
 ---
 
 ## 2. Supervisor (중앙 관리자 에이전트)
@@ -26,10 +74,11 @@
     - 여행 일정 초안 생성 및 구체화
     - 기존 일정 조회 및 수정
     - 시간, 동선, 테마(힐링, 맛집, 가족)를 고려한 맞춤형 일정 구성
-- 필요 도구:
-    - `create_travel_plan`: 여행 계획 데이터 구조를 생성하는 도구
-    - `modify_travel_plan`: 기존 계획을 수정하는 도구
-    - (필요 시) `LocationSearchAgent`, `VerifierAgent` 호출
+- 도구:
+    - `web_search_tool`: Tavily API를 통한 웹 검색
+    - `create_travel_plan_tool`: 여행 계획 JSON 구조 생성
+    - `modify_travel_plan_tool`: 기존 계획 수정
+    - `validate_travel_plan_tool`: 계획 유효성 검증
 
 ### 3.2. LocationSearchAgent (장소 검색 에이전트)
 - 역할: 여행 계획에 필요한 장소(관광지, 맛집, 숙소, 행사) 정보를 검색하고 수집합니다.
@@ -37,46 +86,241 @@
     - 키워드 기반 장소 검색
     - 테마/조건(가족 친화, 1인 여행, 자연 등)에 맞는 장소 필터링
     - 실시간 이벤트 및 축제 정보 검색
-- 필요 도구: services/google_search_service.py 참고고
-    - `web_search_tool`: 웹 검색을 위한 API (Google)
-    - `map_search_tool`: 지도 기반 정보(위치, 경로)를 위한 API (Kakao Maps)
+- 도구:
+    - `location_search_tool`: 카카오맵 API를 통한 특정 장소 상세 정보 검색
+    - `nearby_search_tool`: 특정 위치 주변의 카테고리별 장소 검색 (음식점, 카페, 숙박시설 등)
 
-### 3.3. VerifierAgent (정보 검증 에이전트)
+### 3.3. VerifierAgent (정보 검증 에이전트) - 미구현 (추후 구현 예정)
 - 역할: 에이전트가 수집하거나 생성한 정보의 신뢰성을 검증하여 '환각(Hallucination)'을 최소화합니다.
-- 주요 기능:
+- 현재 상태: 설계 완료, 구현 미완료 (v2 에서 구현 예정)
+- 주요 기능 (예정):
     - 장소 정보 검증 (운영 시간, 휴무일, 폐업 여부)
     - 실시간 정보 확인 (날씨, 교통, 혼잡도)
     - 여행 정보의 안전성 및 적합성 검토 (e.g., 1인 여행 안전, 가족 접근성)
     - 공유 전 개인정보 포함 여부 검토
-- 필요 도구:
+- 필요 도구 (예정):
     - `fact_check_tool`: 공식 웹사이트, 신뢰할 수 있는 소스를 교차 확인하는 웹 검색 도구
     - `weather_api_tool`: 특정 지역 및 시간의 날씨 정보 조회 API
     - `pii_scan_tool`: 개인정보 포함 여부를 스캔하는 도구
+- 임시 대안: 현재는 LocationSearchAgent와 PlannerAgent에서 기본적인 web, map 검색 기능을 활용하여 환각 최소화
 
 ### 3.4. CalendarAgent (캘린더 연동 에이전트)
-- 역할: 확정된 여행 일정을 사용자의 외부 캘린더에 등록하고 관리합니다.
+- 역할: 확정된 여행 일정을 사용자의 카카오 캘린더에 등록하고 관리합니다.
 - 주요 기능:
     - 신규 일정 등록
     - 기존 일정 조회, 수정, 삭제
-- 필요 도구: services/kakao_calendar_service.py 참고
-    - `create_calendar_event`: 캘린더 신규 일정 등록 API
-    - `read_calendar_events`: 캘린더 일정 조회 API
-    - `update_calendar_event`: 캘린더 일정 수정 API
-    - `delete_calendar_event`: 캘린더 일정 삭제 API
+    - 여행 계획 텍스트 파싱 및 구조화
+- 실제 구현된 도구들:
+    - `add_travel_plan_to_calendar`: 완성된 여행 계획을 카카오 캘린더에 등록
+    - `check_calendar_availability`: 특정 날짜의 캘린더 일정 확인
+    - `update_travel_plan_tool`: 기존 여행 이벤트 수정
+    - `delete_travel_plan_tool`: 여행 이벤트 삭제
+    - `search_travel_plan_tool`: 여행 계획 검색 (키워드 기반)
 
 ### 3.5. SharingAgent (공유 에이전트)
 - 역할: 완성된 여행 계획서를 사용자나 제3자에게 공유 가능한 형태로 변환하고 전달합니다.
 - 주요 기능:
-    - 계획서를 텍스트, 이미지, PDF 등 다양한 포맷으로 변환
+    - 계획서를 Notion 페이지로 변환
     - 공유 가능한 고유 링크 생성
-- 필요 도구:
-    - `create_share_link_tool`: 계획을 외부에서 볼 수 있는 링크를 생성하는 API
+    - 여행 계획 구조화 및 포맷팅
+- 실제 구현된 도구들:
+    - `create_notion_page_tool`: Notion API를 통한 여행 계획 페이지 생성 및 공유 링크 제공
 
 ---
 
-## 4. 참고사항
+## 4. 구현 현황 및 참고사항
+
+### 4.1. 현재 구현 완료된 에이전트
+-  Supervisor Agent: 중앙 관리자 역할 완료
+-  PlannerAgent: 여행 계획 생성/수정 기능 완료
+-  LocationSearchAgent: 장소 검색 기능 완료
+-  CalendarAgent: 카카오 캘린더 연동 완료
+-  SharingAgent: Notion 공유 기능 완료
+
+### 4.2. 미구현 에이전트
+-  VerifierAgent: 추후 v2.0에서 구현 예정
+    -> 현재는 다른 에이전트들이 기본적인 검증 기능을 분담하여 수행
+
+### 4.3. 개발 참고사항
 - 에이전트 구현: 각 에이전트는 LangChain의 에이전트 생성 메서드 사용하여 구현
+- 에이전트 flow 연결: 각 에이전트를 LangGraph 이용해 노드와 엣지로 연결
 - 점진적 개발: 초기에는 `Supervisor`, `PlannerAgent`, `LocationSearchAgent` 중심으로 개발하고, 점차 다른 에이전트를 추가하며 확장.
 - 사용자 확인: 중요한 결정(일정 저장, 수정 등) 단계에서는 사용자에게 확인을 받는 절차를 포함하여 상호작용성을 높임. 
 - 절대 키워드 기반 분석 하지 말기.
 - 목업데이터로 매칭해서 하는것도 절대 하지 말기.
+
+### 4.4. 향후 개발 계획
+- v2.0: VerifierAgent 구현을 통한 정보 검증 강화
+- v2.1: 추가 외부 API 연동 (기상청 API 등)
+- v2.2: 사용자 맞춤형 추천 시스템 고도화
+
+---
+
+## 5. 확장성 설계: LLM 및 프롬프트 관리
+
+본 시스템은 LLM 모델과 프롬프트를 코드에서 분리하여 중앙에서 관리하는 확장성 높은 구조를 지향합니다. 이를 통해 모델 교체, 프롬프트 버전 관리, A/B 테스트 등을 코드 수정 없이 설정 파일 변경만으로 수행할 수 있습니다.
+
+### 5.1. 설정 기반 LLM 로딩 전략
+
+#### 5.1.1. 중앙 관리 시스템
+- 설정 파일: `src/config/models.yml`에서 사용 가능한 모든 LLM 정보를 정의
+- 모델 정보 포함: 제공사(OpenAI, Google 등), 모델명, 파라미터(temperature 등)
+- 에이전트 매핑: 각 에이전트별로 사용할 모델을 별칭으로 지정
+
+```yaml
+# 예시: src/config/models.yml
+models:
+  - alias: "fast_model"
+    provider: "openai"
+    name: "gpt-4o-mini"
+    parameters:
+      temperature: 0.1
+  - alias: "smart_model"
+    provider: "openai"
+    name: "gpt-4o"
+    parameters:
+      temperature: 0.3
+
+agent_model_mapping:
+  default: "fast_model"
+  supervisor: "smart_model"
+  planner_agent: "fast_model"
+  location_search_agent: "fast_model"
+  calendar_agent: "fast_model"
+  share_agent: "fast_model"
+```
+
+#### 5.1.2. 동적 로딩 구조
+- ModelProvider 클래스: 설정 파일을 읽어 LangChain 모델 객체를 동적 생성
+- 에이전트별 할당: `get_llm_for_agent(agent_name)` 함수로 각 에이전트에 맞는 모델 주입
+- 유연한 교체: 설정 파일 수정만으로 전체 시스템의 LLM 변경 가능
+
+### 5.2. 프롬프트 버전 관리 전략
+
+#### 5.2.1. 외부 파일 분리
+- 디렉토리 구조: `src/prompts/templates/` 하위에 버전별/에이전트별 관리
+- 버전 관리: `v1`, `v2` 등 디렉토리로 프롬프트 버전 구분
+- 에이전트별 파일: 각 에이전트마다 독립적인 YAML 파일로 프롬프트 관리
+
+```
+src/prompts/templates/
+├── v1/
+│   ├── supervisor.yml
+│   ├── planner_agent.yml
+│   ├── location_search_agent.yml
+│   ├── calendar_agent.yml
+│   └── share_agent.yml
+└── v2/  # 향후 개선된 프롬프트 버전
+    ├── supervisor.yml
+    └── ...
+```
+
+#### 5.2.2. 프롬프트 메타데이터 관리
+각 프롬프트 파일은 다음 정보를 포함:
+- 버전 정보: 프롬프트 버전, 작성자, 작성 날짜
+- 설명: 프롬프트의 목적과 특징
+- 템플릿: 실제 프롬프트 내용 (변수 포함 가능)
+
+```yaml
+# 예시: src/prompts/templates/v1/supervisor.yml
+version: "1.0"
+author: "개발팀"
+description: "Supervisor 에이전트의 기본 프롬프트. 사용자 요청 분석 및 워커 에이전트 라우팅"
+template: |
+  당신은 여행 계획 수립을 총괄하는 전문 Supervisor 에이전트입니다.
+  사용자의 요청을 분석하고 적절한 전문가에게 작업을 위임해야 합니다.
+  
+  사용 가능한 전문가들:
+  - planner_agent: 여행 계획 생성/수정
+  - location_search_agent: 장소 정보 검색
+  - calendar_agent: 캘린더 등록/관리
+  - share_agent: 계획 공유
+  
+  사용자 요청: {messages}
+```
+
+#### 5.2.3. 동적 프롬프트 로딩
+- PromptManager 클래스: 버전과 에이전트명으로 프롬프트 파일 로드
+- 템플릿 엔진: LangChain의 `ChatPromptTemplate`과 연동
+- A/B 테스트 지원: 설정으로 프롬프트 버전 전환 가능
+
+### 5.3. 확장성의 장점
+
+#### 5.3.1. 운영 측면
+- 무중단 업데이트: 코드 재배포 없이 모델/프롬프트 변경
+- 비용 최적화: 에이전트별로 적절한 모델 할당 (예: Supervisor만 GPT-4, 나머지는 GPT-4o-mini)
+- 성능 튜닝: 프롬프트 개선을 통한 지속적인 품질 향상
+
+#### 5.3.2. 개발 측면
+- 버전 관리: Git을 통한 프롬프트 히스토리 추적
+- 협업 효율성: 개발자가 아닌 도메인 전문가도 프롬프트 수정 가능
+- 테스트 용이성: 다양한 모델/프롬프트 조합으로 성능 비교 테스트
+
+#### 5.3.3. 확장 가능성
+- 멀티 모델 지원: OpenAI 외 Google, Anthropic 등 다양한 제공사 모델 추가
+- 개인화: 사용자별 맞춤 프롬프트 적용
+- 지역화: 언어별 프롬프트 버전 관리
+
+---
+
+## 6. LLM 답변 품질 보증(QA) 전략: `debug_tesyt.p`에서 발전
+
+LLM 답변의 품질을 지속적으로 관리하고 보증하기 위해, 기존의 단일 쿼리 기반 `debug_test.py` 스크립트를 체계적인 자동화 품질 보증(QA) 프레임워크로 발전시키는 전략을 채택합니다. 이 전략은 '구조화', '정량화', '지속성'의 3단계로 구성됩니다.
+
+### 6.1. 1단계: 테스트 구조화 (시나리오 및 평가 기준 도입)
+- 목표: 수동 디버깅에서 벗어나, 다양한 핵심 시나리오를 자동으로 테스트하는 기반을 마련합니다.
+- 실행 방안:
+    - 테스트 케이스 분리: `test_scenarios.json`과 같은 별도 파일을 통해 다양한 테스트 시나리오(예: 가족 여행, 예산 제약 여행 등)와 기대 결과(예: 필수 포함 키워드)를 관리합니다.
+    - 자동 검증 로직 추가: `debug_test.py`가 시나리오 파일을 읽어 순차적으로 테스트를 실행하고, 최종 결과물이 기대 결과를 충족하는지 기본적인 Pass/Fail을 자동으로 판정합니다.
+
+### 6.2. 2단계: 평가 정량화 (품질 점수 계산 및 리포팅)
+- 목표: 단순 Pass/Fail을 넘어, 답변 품질을 객관적인 '점수'로 측정하여 성능 변화를 추적합니다.
+- 실행 방안:
+    - 품질 평가 함수 개발: LLM 답변을 정량적으로 평가하는 함수를 구현합니다.
+        - 완전성(Completeness): 필수 키워드 포함 비율
+        - 형식 준수(Format Adherence): 요청된 최종 결과물(예: Notion 페이지)의 형식 준수 여부
+    - 자동 리포팅: 테스트 완료 후, `quality_report.json`과 같은 형태로 각 시나리오의 점수와 성공 여부가 포함된 종합 리포트를 생성합니다. 이를 통해 모델/프롬프트 버전별 성능을 객관적으로 비교 분석할 수 있습니다.
+
+### 6.3. 3단계: 테스트 지속성 (CI/CD 파이프라인 연동)
+- 목표: 품질 테스트를 개발 프로세스에 완전히 통합하여, 코드 변경이 발생할 때마다 자동으로 품질을 검증하는 '지속적인 품질 보증' 체계를 구축합니다.
+- 실행 방안:
+    - CI/CD 연동: GitHub Actions와 같은 CI/CD 도구를 활용하여, 특정 브랜치에 코드가 푸시되거나 매일 특정 시간이 되면 `debug_test.py`가 자동으로 실행되도록 설정합니다.
+    - 품질 게이트(Quality Gate) 운영: 테스트 결과, 전반적인 품질 점수가 설정된 기준치(예: 80점)에 미달하거나 실패한 테스트 케이스가 있을 경우, 빌드를 실패 처리하고 관련 담당자에게 즉시 알림을 보냅니다.
+
+### 6.4. 기대 효과
+- 품질 저하 방지: 모델이나 프롬프트 변경이 의도치 않게 답변 품질을 저하시키는 것을 사전에 방지합니다.
+- 객관적 성능 관리: LLM의 성능을 객관적인 데이터와 점수로 관리하고, 개선 효과를 명확하게 측정합니다.
+- 개발 효율성 증대: 반복적인 회귀 테스트를 자동화하여 개발자가 핵심 기능 개발에 더 집중할 수 있도록 합니다.
+
+---
+
+## 7. 고도화된 LLM 가드레일(Guardrail) 전략
+
+현재 시스템의 정규식(Regex) 기반 가드레일은 명확한 패턴(예: 개인정보) 차단에는 효과적이지만, 문맥을 이해하지 못하는 명백한 한계가 존재합니다. 이에 따라, 업계 모범 사례를 기반으로 한 다계층(Multi-layered) 하이브리드 가드레일 전략을 도입하여 시스템의 안전성과 신뢰성을 대폭 향상시킵니다.
+
+### 7.1. 다계층 가드레일 아키텍처
+
+단일 방어 체계에서 벗어나, 요청의 생애주기(Lifecycle)에 따라 여러 단계의 방어막을 구축합니다.
+
+#### 7.1.1. 1단계: 입력 가드레일 (Input Guardrails)
+- 목적: 악의적이거나 부적절한 사용자 요청이 메인 시스템에 도달하기 전 선제적으로 차단합니다.
+- 구현 방안:
+    - (기존) 정규식/키워드 필터: 개인정보(PII), 명백한 욕설 등 패턴이 명확한 정보를 1차적으로 필터링합니다. (현재 `ProfanityFilter`, `PrivacyFilter`가 여기에 해당)
+    - (신규) LLM 기반 의도 분석 필터: 사용자의 요청 의도가 시스템의 목적(여행 계획)에 부합하는지, 혹은 시스템을 우회하려는 탈옥(Jailbreak) 시도인지 등을 LLM을 통해 문맥적으로 분석하고 차단합니다.
+
+#### 7.1.2. 2단계: 실행 가드레일 (Runtime Guardrails)
+- 목적: 메인 LLM이 응답을 생성하는 과정에 실시간으로 개입하여 결과물을 제어합니다.
+- 구현 방안:
+    - 시스템 프롬프트: "너는 법률 자문을 제공하지 않는다"와 같이 에이전트의 역할과 제약을 명확히 정의합니다.
+    - LLM을 통한 LLM 검증 (Checker Model): 메인 에이전트가 생성한 중간 또는 최종 답변을, 안전성 검증에 특화된 별도의 가드레일 LLM에게 전달하여 "이 답변은 안전한가?", "편향은 없는가?" 등을 재차 확인하는 'LLM-as-a-Judge' 방식을 도입합니다.
+
+#### 7.1.3. 3단계: 출력 가드레일 (Output Guardrails)
+- 목적: 생성된 답변이 사용자에게 전달되기 전, 최종적으로 검증하고 안전장치를 추가합니다.
+- 구현 방안:
+    - 최종 유해성/편향성 검사: 외부 API(예: OpenAI Moderation API)나 내부 LLM 필터를 통해 마지막으로 콘텐츠를 검사합니다.
+    - 사실성 검증(Fact-Checking) 및 출처 명시: (장기 과제) RAG(검색 증강 생성)를 활용해 답변의 사실성을 검증하고, 필요한 경우 정보의 출처를 함께 제공하여 신뢰도를 높입니다.
+    - 면책 조항(Disclaimer) 추가: "저는 AI 어시스턴트이며, 제 답변은 부정확할 수 있습니다. 중요한 정보는 전문가와 상의하세요."와 같은 면책 조항을 특정 유형의 답변에 자동으로 추가합니다.
+
+### 7.2. 단계적 도입 계획
+1.  단기: `LLMBasedFilter`를 구현하여 입력 가드레일을 고도화하고, 출력 가드레일에 간단한 LLM 기반 유해성 검사를 추가합니다.
+2.  중장기: Guardrails AI, NeMo Guardrails와 같은 전문 오픈소스 프레임워크 도입을 검토하여, 보다 복잡하고 정교한 규칙을 효율적으로 관리하고 적용합니다.
