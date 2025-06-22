@@ -21,7 +21,7 @@ load_dotenv(override=True)
 
 # 페이지 설정
 st.set_page_config(
-    page_title="🌏 여행 계획 AI",
+    page_title="여행 AI 어시스턴트",
     page_icon="🌏",
     layout="centered"
 )
@@ -137,7 +137,7 @@ def display_chat_messages():
         else:
             st.markdown(f"""
             <div class="ai-message">
-                <strong>🤖 AI Travel Assistant</strong><br>
+                <strong>🤖 Travel Planner </strong><br>
                 {message["content"]}
                 <div class="message-time">{message["timestamp"]}</div>
             </div>
@@ -279,9 +279,9 @@ def process_user_input(user_input: str):
 
 def main():
     """메인 애플리케이션 실행"""
-    st.markdown("<h1 class='main-title'>🌏 여행 계획 AI 어시스턴트</h1>",
+    st.markdown("<h1 class='main-title'>🌏 여행 AI 어시스턴트</h1>",
                 unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>궁금한 여행 계획을 물어보세요! AI 에이전트 팀이 도와드릴게요.</p>",
+    st.markdown("<p class='subtitle'>궁금한 여행 계획을 물어보세요! Travel Planner Agent가 도와드릴게요.</p>",
                 unsafe_allow_html=True)
 
     initialize_session_state()

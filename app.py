@@ -24,7 +24,7 @@ def run_streamlit():
 
     try:
         print(f"Running command: {' '.join(command)}")
-        print("🌏 여행 계획 AI 어시스턴트가 http://localhost:8501 에서 실행됩니다...")
+        print("http://localhost:8501")
         subprocess.run(command, check=True)
     except FileNotFoundError:
         print("Error: 'streamlit' command not found.")

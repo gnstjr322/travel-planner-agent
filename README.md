@@ -1,4 +1,4 @@
-# 여행 계획 AI Assistance - Travel Planner Agent
+# 여행 AI Assistance - Travel Planner Agent
 
 AI 기반 멀티 에이전트 시스템을 활용한 지능형 여행 계획 서비스입니다.
 

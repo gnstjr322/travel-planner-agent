@@ -16,3 +16,6 @@ api_test_script.py
 __pycache__/
 
 프로젝트내용.txt
+#test
+api_test_script.py
+debug.py

@@ -1,131 +1,179 @@
-"""
-캘린더 에이전트 - 여행 계획을 카카오 캘린더에 등록
-"""
+import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
 
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
-
-from src.tools.calendar_tools import (add_travel_plan_to_calendar,
-                                      check_calendar_availability)
-from src.utils.logger import get_logger
-
-logger = get_logger(__name__)
+from src.services.kakao_calendar_service import KakaoCalendarService
+from src.tools.calendar_tools import CalendarTools
 
 
 class CalendarAgent:
-    """여행 계획을 카카오 캘린더에 등록하는 전문 에이전트"""
-
-    def __init__(self, llm: ChatOpenAI):
-        self.llm = llm
-        self.tools = [add_travel_plan_to_calendar, check_calendar_availability]
-
-    async def process_travel_plan(self, travel_plan: str, destination: str = None, travel_date: str = None) -> str:
+    def __init__(self):
         """
-        여행 계획을 분석하고 카카오 캘린더에 등록
+        캘린더 관리 및 일정 등록을 담당하는 에이전트
+        """
+        self.logger = logging.getLogger(__name__)
+        self.kakao_calendar_service = KakaoCalendarService()
+        self.calendar_tools = CalendarTools()
+
+    def prepare_calendar_registration(self, verified_plan: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        캘린더 등록을 위한 일정 준비
 
         Args:
-            travel_plan: 완성된 여행 계획 텍스트
-            destination: 여행 목적지 (선택사항)
-            travel_date: 여행 날짜 (선택사항)
+            verified_plan (Dict[str, Any]): 검증된 여행 계획
 
         Returns:
-            캘린더 등록 결과 메시지
+            Dict[str, Any]: 캘린더 등록 준비 정보
         """
-        try:
-            logger.info("CalendarAgent: 여행 계획 캘린더 등록 시작")
+        self.logger.info("캘린더 등록 준비 시작")
 
-            # 시스템 메시지
-            system_msg = SystemMessage(content="""
-당신은 여행 계획을 카카오 캘린더에 등록하는 전문가입니다.
+        calendar_events = self._convert_plan_to_calendar_events(verified_plan)
 
-**임무:**
-1. 제공된 여행 계획을 분석하여 다음 정보를 추출합니다:
-   - 여행 목적지
-   - 여행 날짜/기간
-   - 주요 활동 및 장소들
-   - 시간별 일정 (있는 경우)
+        registration_info = {
+            'total_events': len(calendar_events),
+            'events': calendar_events,
+            'registration_status': '대기 중'
+        }
 
-2. `add_travel_plan_to_calendar` 도구를 사용하여 캘린더에 등록합니다.
+        return registration_info
 
-3. 등록 결과를 사용자에게 친근하게 보고합니다.
+    def _convert_plan_to_calendar_events(self, verified_plan: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        여행 계획을 캘린더 이벤트로 변환
 
-**중요 사항:**
-- 날짜 정보가 명확하지 않은 경우, 사용자에게 구체적인 날짜를 요청하세요.
-- 일정 충돌을 방지하기 위해 필요시 `check_calendar_availability` 도구를 사용하세요.
-- 등록 성공 시 구체적인 일정 내용을 요약해서 알려주세요.
-""")
+        Args:
+            verified_plan (Dict[str, Any]): 검증된 여행 계획
 
-            # 사용자 메시지 구성
-            user_content = f"다음 여행 계획을 카카오 캘린더에 등록해주세요:\n\n{travel_plan}"
-            if destination:
-                user_content += f"\n\n목적지: {destination}"
-            if travel_date:
-                user_content += f"\n여행 날짜: {travel_date}"
+        Returns:
+            List[Dict[str, Any]]: 캘린더 이벤트 목록
+        """
+        calendar_events = []
+        daily_itinerary = verified_plan.get('daily_itinerary', [])
 
-            user_msg = HumanMessage(content=user_content)
+        for day_plan in daily_itinerary:
+            # 목적지 이벤트
+            destination_event = {
+                'title': f"{day_plan['destination']} 여행",
+                'start_time': day_plan['date'],
+                'end_time': day_plan['date'],
+                'description': f"{day_plan['destination']} 도착 및 일정"
+            }
+            calendar_events.append(destination_event)
 
-            # LLM 호출하여 캘린더 등록 처리
-            messages = [system_msg, user_msg]
+            # 활동 이벤트
+            for activity in day_plan.get('activities', []):
+                activity_event = {
+                    'title': activity,
+                    'start_time': self._calculate_activity_time(day_plan['date']),
+                    # 기본 2시간
+                    'end_time': self._calculate_activity_time(day_plan['date'], duration=2),
+                    'description': f"{day_plan['destination']} 여행 중 {activity} 활동"
+                }
+                calendar_events.append(activity_event)
 
-            # 도구 바인딩
-            llm_with_tools = self.llm.bind_tools(self.tools)
-            response = await llm_with_tools.ainvoke(messages)
+        return calendar_events
 
-            # 도구 호출이 있는 경우 실행
-            if response.tool_calls:
-                messages.append(response)
+    def _calculate_activity_time(self, base_date: str, duration: int = 2) -> str:
+        """
+        활동 시작 시간 계산
 
-                for tool_call in response.tool_calls:
-                    tool_name = tool_call["name"]
-                    tool_args = tool_call["args"]
+        Args:
+            base_date (str): 기준 날짜
+            duration (int): 활동 지속 시간 (시간)
 
-                    logger.info(f"CalendarAgent: {tool_name} 도구 실행 중...")
+        Returns:
+            str: 계산된 활동 시작 시간
+        """
+        base_datetime = datetime.strptime(base_date, '%Y-%m-%d')
+        activity_time = base_datetime.replace(hour=10, minute=0)  # 기본 오전 10시
 
-                    if tool_name == "add_travel_plan_to_calendar":
-                        result = await add_travel_plan_to_calendar.ainvoke(tool_args)
-                    elif tool_name == "check_calendar_availability":
-                        result = await check_calendar_availability.ainvoke(tool_args)
-                    else:
-                        result = f"알 수 없는 도구: {tool_name}"
+        return activity_time.strftime('%Y-%m-%d %H:%M')
 
-                    # 도구 실행 결과를 메시지에 추가
-                    from langchain_core.messages import ToolMessage
-                    messages.append(ToolMessage(
-                        content=str(result),
-                        tool_call_id=tool_call["id"]
-                    ))
+    def register_to_calendar(self, verified_plan: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        여행 계획을 카카오 캘린더에 등록
 
-                # 최종 응답 생성
-                final_response = await self.llm.ainvoke(messages)
-                result = final_response.content
-            else:
-                result = response.content
+        Args:
+            verified_plan (Dict[str, Any]): 검증된 여행 계획
 
-            logger.info("CalendarAgent: 캘린더 등록 처리 완료")
-            return result
+        Returns:
+            Dict[str, Any]: 캘린더 등록 결과
+        """
+        self.logger.info("카카오 캘린더 등록 시작")
 
-        except Exception as e:
-            error_msg = f"캘린더 등록 중 오류가 발생했습니다: {str(e)}"
-            logger.error(f"CalendarAgent 오류: {error_msg}")
-            return error_msg
+        calendar_events = self._convert_plan_to_calendar_events(verified_plan)
+        registration_results = []
 
-    def get_calendar_registration_guide(self) -> str:
-        """캘린더 등록 안내 메시지 반환"""
-        return """
-📅 **캘린더 등록 안내**
+        for event in calendar_events:
+            try:
+                result = self.kakao_calendar_service.create_event(
+                    title=event['title'],
+                    start_time=event['start_time'],
+                    end_time=event['end_time'],
+                    description=event['description']
+                )
+                registration_results.append({
+                    'event': event['title'],
+                    'status': '성공' if result else '실패'
+                })
+            except Exception as e:
+                self.logger.error(f"캘린더 이벤트 등록 실패: {event['title']}, 오류: {e}")
+                registration_results.append({
+                    'event': event['title'],
+                    'status': '실패',
+                    'error': str(e)
+                })
 
-여행 계획이 완성되었습니다! 카카오 캘린더에 등록하시겠습니까?
+        registration_summary = {
+            'total_events': len(calendar_events),
+            'successful_events': sum(1 for result in registration_results if result['status'] == '성공'),
+            'failed_events': sum(1 for result in registration_results if result['status'] == '실패'),
+            'registration_results': registration_results
+        }
 
-**등록 시 포함되는 정보:**
-- 여행 제목 및 목적지
-- 여행 날짜 및 기간
-- 주요 방문 장소 및 활동
-- 맛집 및 카페 정보
+        self.logger.info("카카오 캘린더 등록 완료")
+        return registration_summary
 
-**필요한 정보:**
-- 구체적인 여행 날짜 (예: 2024-03-15)
-- 여행 기간 (당일치기/1박2일 등)
+    def sync_with_notion(self, verified_plan: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        여행 계획을 Notion과 동기화
 
-날짜를 알려주시면 바로 캘린더에 등록해드리겠습니다! 🎯
-"""
+        Args:
+            verified_plan (Dict[str, Any]): 검증된 여행 계획
 
+        Returns:
+            Dict[str, Any]: Notion 동기화 결과
+        """
+        self.logger.info("Notion과 캘린더 동기화 시작")
+
+        # Notion 서비스 연동 및 동기화 로직 구현
+        # 실제 구현 시 Notion 서비스를 통해 여행 계획 페이지 생성 및 업데이트
+
+        sync_result = {
+            'status': '대기 중',
+            'notion_page_id': None,
+            'sync_details': {}
+        }
+
+        return sync_result
+
+    def execute(self, verified_plan: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        캘린더 에이전트의 주요 실행 메서드
+
+        Args:
+            verified_plan (Dict[str, Any]): 검증된 여행 계획
+
+        Returns:
+            Dict[str, Any]: 캘린더 관리 결과
+        """
+        calendar_registration = self.prepare_calendar_registration(
+            verified_plan)
+        calendar_sync_result = self.register_to_calendar(verified_plan)
+        notion_sync_result = self.sync_with_notion(verified_plan)
+
+        return {
+            'calendar_registration': calendar_registration,
+            'calendar_sync_result': calendar_sync_result,
+            'notion_sync_result': notion_sync_result
+        }
