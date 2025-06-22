@@ -204,9 +204,6 @@ travel-planner-agent/
 8. **Supervisor**: 최종 단계 → `transfer_to_share_agent` 호출
 9. **ShareAgent**: Notion 페이지 생성 및 링크 반환 → 최종 완료
 
-## 특징
+## 결과
 
-- **명시적 제어**: `Command`를 사용한 Handoff 방식으로 안정적인 워크플로우 관리
-- **중앙 집중형 구조**: Supervisor를 통한 효율적인 작업 분배 및 상태 관리
-- **유연한 확장성**: 신규 에이전트 및 도구를 쉽게 추가할 수 있는 구조
-- **외부 서비스 연동**: 카카오, 노션 등 다양한 외부 API를 활용한 실용적인 기능 제공
+- **/screenshot**: 해당 프로젝트의 결과를 보시려면 /screenshot 폴더를 확인하시면 됩니다. 
